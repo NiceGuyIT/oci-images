@@ -68,7 +68,7 @@ jobs:
       ################################################################################
       # Debug/development
       ################################################################################
-      - name: Build production image
+      - name: Build debug image
         id: build-debug-image
         env:
             ENVIRONMENT: debug
@@ -79,15 +79,15 @@ jobs:
 
       # Example to push to GHCR: https://github.com/redhat-actions/push-to-registry/blob/main/.github/workflows/ghcr-push.yaml
       - name: Push debug image to GitHub Container Repository
-        id: push-to-ghcr
+        id: push-to-ghcr-debug
         uses: redhat-actions/push-to-registry@v2
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASSWORD }}
-          image: ${{ steps.build-prod-image.outputs.image }}
-          tags: ${{ steps.build-prod-image.outputs.tags }}
+          image: ${{ steps.build-debug-image.outputs.image }}
+          tags: ${{ steps.build-debug-image.outputs.tags }}
 
       - name: Print image URL (debug)
-        run: echo "Debug image pushed to ${{ steps.push-to-ghcr-prod.outputs.registry-paths }}"
+        run: echo "Debug image pushed to ${{ steps.push-to-ghcr-debug.outputs.registry-paths }}"
 
