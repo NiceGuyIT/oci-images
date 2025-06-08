@@ -1,5 +1,5 @@
 ---
-# Example to push to GHCR: https://github.com/redhat-actions/push-to-registry/blob/main/.github/workflows/ghcr-push.yaml
+# Build WordPress and push to GHCR.
 name: Build WordPress container
 
 on:
@@ -12,7 +12,8 @@ jobs:
     env:
       IMAGE_NAME: wordpress-redis-pdo_mysql
       IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
-      REGISTRY_USER: ${{ github.actor }}
+      # This does not work for mixed-case usernames.
+      # REGISTRY_USER: ${{ github.actor }}
       REGISTRY_PASSWORD: ${{ github.token }}
 
     steps:
@@ -26,6 +27,11 @@ jobs:
           # Don't use 0.90 here, as it would be a float number and would be converted to 0.9
           # you can use v0.90/0.90.0 or '0.90'
           version: "0.104.1"
+
+      - name: Lowercase repo name
+        shell: nu {0}
+        run: |
+          $"REGISTRY_USER=($env.GITHUB_REPOSITORY_OWNER | str downcase)\n" | save --append $env.GITHUB_ENV
 
       # - name: Buildah Action
       #   id: build-image
@@ -49,6 +55,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Example to push to GHCR: https://github.com/redhat-actions/push-to-registry/blob/main/.github/workflows/ghcr-push.yaml
       - name: Push to GitHub Container Repository
         id: push-to-ghcr
         uses: redhat-actions/push-to-registry@v2
