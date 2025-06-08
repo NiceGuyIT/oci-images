@@ -62,7 +62,10 @@ let image_version = (
 		$config.php.version
 		$config.redis.version
 		$xdebug_version
-	] | str join '-'
+	]
+	| str join '-'
+	# $xdebug_version may be blank causing an extra '-' at the end of the string.
+	| str trim --char '-'
 )
 
 let wordpress = (^buildah from $"docker.io/wordpress:($wordpress_docker_tag)")
@@ -107,8 +110,8 @@ let image = (^buildah commit $wordpress $image_name)
 log info $"Built image '($image_name)' version '($image_version)'"
 
 # Publish the image to Docker for use.
-# ^buildah push $image $"docker-daemon:($image_name):($image_version)"
-# log info $"Published image '($image_name)' version '($image_version)' to Docker."
+^buildah push $image $"docker-daemon:($image_name):($image_version)"
+log info $"Published image '($image_name)' version '($image_version)' to Docker."
 
 # TODO: Add composer and wp-cli
 # https://hub.docker.com/_/composer
