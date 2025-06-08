@@ -33,6 +33,7 @@ jobs:
       #       ./Containerfile
 
       - name: Build image
+        id: build-image
         shell: nu {0}
         run: |
           ./wordpress/build.nu
