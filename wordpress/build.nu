@@ -28,7 +28,7 @@ use std log
 # Redis: https://pecl.php.net/package/redis
 # PHP: https://www.php.net/supported-versions.php
 # WordPress: https://hub.docker.com/_/wordpress
-let config = (open variables.yml)
+let config = (open config.yml)
 
 # WordPress
 # Docker: https://hub.docker.com/_/wordpress
