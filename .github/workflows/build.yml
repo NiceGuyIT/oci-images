@@ -1,4 +1,5 @@
 ---
+# Example to push to GHCR: https://github.com/redhat-actions/push-to-registry/blob/main/.github/workflows/ghcr-push.yaml
 name: Build WordPress container
 
 on:
@@ -7,10 +8,13 @@ on:
 jobs:
   build:
     name: Build image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       IMAGE_NAME: wordpress-redis-pdo_mysql
-      REGISTRY: ghcr.io/major
+      IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+      REGISTRY_USER: ${{ github.actor }}
+      REGISTRY_PASSWORD: ${{ github.token }}
+
     steps:
 
       - name: Clone the repository
@@ -41,7 +45,7 @@ jobs:
       - name: Log in to the GitHub Container registry
         uses: redhat-actions/podman-login@v1
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -49,9 +53,11 @@ jobs:
         id: push-to-ghcr
         uses: redhat-actions/push-to-registry@v2
         with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ env.REGISTRY_USER }}
+          password: ${{ env.REGISTRY_PASSWORD }}
           image: ${{ steps.build-image.outputs.image }}
           tags: ${{ steps.build-image.outputs.tags }}
-          registry: ${{ env.REGISTRY }}
 
       - name: Print image URL
         run: echo "Image pushed to ${{ steps.push-to-ghcr.outputs.registry-paths }}"
