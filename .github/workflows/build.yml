@@ -21,7 +21,7 @@ jobs:
         with:
           # Don't use 0.90 here, as it would be a float number and would be converted to 0.9
           # you can use v0.90/0.90.0 or '0.90'
-          version: "0.90"
+          version: "0.104.1"
 
       # - name: Buildah Action
       #   id: build-image
