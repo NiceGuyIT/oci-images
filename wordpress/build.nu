@@ -107,5 +107,5 @@ log info $"Published image '($image_name)' version '($image_version)' to Docker.
 # COPY --from=wordpress:cli /usr/local/bin/wp /usr/local/bin/wp
 
 # Output the information to the GitHub action.
-$"image=($image)" | save --append $env.GITHUB_OUTPUT
+$"image=($image_name)" | save --append $env.GITHUB_OUTPUT
 $"tags=($image_version)" | save --append $env.GITHUB_OUTPUT
