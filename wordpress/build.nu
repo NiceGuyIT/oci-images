@@ -23,34 +23,47 @@ use std log
 # These are the version numbers used to build the WordPress image. While WordPress can update itself,
 # the other versions are not updated automatically. A new image needs to be built to update the versions.
 
-# xdebug
-# PECL: https://pecl.php.net/package/xdebug
-let xdebug_version = "3.4.3"
-
-# PHP Redis
-# PECL: https://pecl.php.net/package/redis
-let php_redis_version = "6.2.0"
-
-# PHP
-# https://www.php.net/supported-versions.php
-# Note: The PHP version is determined by the WordPress Docker image, not this variable.
-let php_version = "8.4"
+# Contains versions of packages to install.
+# xdebug: https://pecl.php.net/package/xdebug
+# Redis: https://pecl.php.net/package/redis
+# PHP: https://www.php.net/supported-versions.php
+# WordPress: https://hub.docker.com/_/wordpress
+let config = (open variables.yml)
 
 # WordPress
 # Docker: https://hub.docker.com/_/wordpress
-# https://wordpress.org/download/releases/
+# Download: https://wordpress.org/download/releases/
 # https://wordpress.org/documentation/article/wordpress-versions/#planned-versions
-let wordpress_version = "6.8.1"
-let wordpress_docker_tag = $"($wordpress_version)-php($php_version)-fpm-alpine"
+let wordpress_docker_tag = (
+	[
+		$config.wordpress.version
+		$"php($config.php.version)"
+		"fpm"
+		"alpine"
+	] | str join '-'
+)
 
-# Build dev image or production?
-let environment = "dev"
+# Build debug/dev image or production?
+# "prod" == production
+# anything else == debug
+let environment = "debug"
+mut xdebug_version = ""
+if ("ENVIRONMENT" in $env) and ($env.ENVIRONMENT != "prod") {
+	$xdebug_version = "-debug"
+}
 
-# Docker image name
-let image_name = $"wordpress-redis-pdo_mysql(if $environment != "prod" {"-dev"} else {""})"
-# Need a better version name when publishing to GHCR. For now, "latest" works.
-# let image_version = ([$wordpress_version $php_version $php_redis_version] | str join '-')
-let image_version = "latest"
+# Image name
+let image_name = $"wordpress-redis-pdo"
+# The image version does not include the WordPress version because the WordPress version is determined
+# by the data, not the image.
+let image_version = (
+	[
+		$config.wordpress.version
+		$config.php.version
+		$config.redis.version
+		$xdebug_version
+	] | str join '-'
+)
 
 let wordpress = (^buildah from $"docker.io/wordpress:($wordpress_docker_tag)")
 
@@ -63,35 +76,39 @@ let wordpress = (^buildah from $"docker.io/wordpress:($wordpress_docker_tag)")
 # Note: $PHPIZE_DEPS refers to the PHP dependencies that need to be installed in Docker.
 # https://github.com/docker-library/php/blob/master/8.3/alpine3.20/cli/Dockerfile
 # https://www.php.net/manual/en/install.pecl.phpize.php
-log info $"========================================\n\n\n"
-log info $"Running apk add pcre-dev libxml2-dev $PHPIZE_DEPS"
-^buildah run $wordpress -- bash -c $"apk add pcre-dev libxml2-dev $PHPIZE_DEPS (if $environment != "prod" {"linux-headers"} else {""})"
+log info "========================================\n\n"
+log info "Running apk add pcre-dev libxml2-dev $PHPIZE_DEPS"
+timeit {^buildah run $wordpress -- bash -c "apk add pcre-dev libxml2-dev $PHPIZE_DEPS"}
 
-log info $"========================================\n\n\n"
-log info $"Running docker-php-ext-install pdo pdo_mysql soap"
-^buildah run $wordpress docker-php-ext-install pdo pdo_mysql soap
+log info "========================================\n\n"
+log info "Running docker-php-ext-install pdo pdo_mysql soap"
+timeit {^buildah run $wordpress docker-php-ext-install pdo pdo_mysql soap}
 
-log info $"========================================\n\n\n"
-log info $"Running pecl install redis"
-^buildah run $wordpress -- bash -c $"echo | pecl install redis-($php_redis_version)"
+log info "========================================\n\n"
+log info "Running pecl install redis"
+timeit {^buildah run $wordpress -- bash -c $"echo | pecl install redis-($config.redis.version)"}
 
 if $environment != "prod" {
-	log info $"========================================\n\n\n"
-	log info $"Running pecl install xdebug"
-	^buildah run $wordpress -- bash -c $"echo | pecl install xdebug-($xdebug_version)"
+	log info "========================================\n\n"
+	log info "Running apk add linux-headers"
+	timeit {^buildah run $wordpress -- bash -c $"apk add linux-headers"}
+
+	log info "========================================\n\n"
+	log info "Running pecl install xdebug"
+	timeit {^buildah run $wordpress -- bash -c $"echo | pecl install xdebug-($config.xdebug.version)"}
 }
 
-log info $"========================================\n\n\n"
+log info $"========================================\n\n"
 log info $"Running docker-php-ext-enable redis"
-^buildah run $wordpress docker-php-ext-enable redis (if $environment != "prod" {"xdebug"} else {""})
+timeit {^buildah run $wordpress docker-php-ext-enable redis (if $environment != "prod" {"xdebug"} else {""})}
 
 # Publish the container as an image (in buildah).
 let image = (^buildah commit $wordpress $image_name)
+log info $"Built image '($image_name)' version '($image_version)'"
 
 # Publish the image to Docker for use.
-^buildah push $image $"docker-daemon:($image_name):($image_version)"
-
-log info $"Published image '($image_name)' version '($image_version)' to Docker."
+# ^buildah push $image $"docker-daemon:($image_name):($image_version)"
+# log info $"Published image '($image_name)' version '($image_version)' to Docker."
 
 # TODO: Add composer and wp-cli
 # https://hub.docker.com/_/composer
@@ -106,7 +123,7 @@ log info $"Published image '($image_name)' version '($image_version)' to Docker.
 # Install wp (WP-CLI) from the wordpress:cli image
 # COPY --from=wordpress:cli /usr/local/bin/wp /usr/local/bin/wp
 
-mut output = "output.txt"
+mut output = "output.log"
 if ("GITHUB_OUTPUT" in $env) {
 	# Output the information to the GitHub action.
 	$output = $env.GITHUB_OUTPUT
