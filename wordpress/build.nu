@@ -106,6 +106,10 @@ log info $"Published image '($image_name)' version '($image_version)' to Docker.
 # Install wp (WP-CLI) from the wordpress:cli image
 # COPY --from=wordpress:cli /usr/local/bin/wp /usr/local/bin/wp
 
-# Output the information to the GitHub action.
-$"image=($image_name)" | save --append $env.GITHUB_OUTPUT
-$"tags=($image_version)" | save --append $env.GITHUB_OUTPUT
+mut output = "output.txt"
+if ("GITHUB_OUTPUT" in $env) {
+	# Output the information to the GitHub action.
+	$output = $env.GITHUB_OUTPUT
+}
+$"image=($image_name)\n" | save --append $output
+$"tags=($image_version)\n" | save --append $output
