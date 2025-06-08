@@ -45,7 +45,7 @@ jobs:
       - name: Build production image
         id: build-prod-image
         env:
-            ENVIRONMENT: prod
+          ENVIRONMENT: prod
         shell: nu {0}
         run: |
           cd wordpress
@@ -71,7 +71,7 @@ jobs:
       - name: Build debug image
         id: build-debug-image
         env:
-            ENVIRONMENT: debug
+          ENVIRONMENT: debug
         shell: nu {0}
         run: |
           cd wordpress
