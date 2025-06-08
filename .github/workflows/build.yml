@@ -48,12 +48,12 @@ jobs:
         run: |
           ./wordpress/build.nu
 
-      - name: Log in to the GitHub Container registry
-        uses: redhat-actions/podman-login@v1
-        with:
-          registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Log in to the GitHub Container registry
+      #   uses: redhat-actions/podman-login@v1
+      #   with:
+      #     registry: ${{ env.IMAGE_REGISTRY }}
+      #     username: ${{ github.actor }}
+      #     password: ${{ secrets.GITHUB_TOKEN }}
 
       # Example to push to GHCR: https://github.com/redhat-actions/push-to-registry/blob/main/.github/workflows/ghcr-push.yaml
       - name: Push to GitHub Container Repository
