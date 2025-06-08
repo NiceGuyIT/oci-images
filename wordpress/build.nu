@@ -46,11 +46,7 @@ let wordpress_docker_tag = (
 # Build debug/dev image or production?
 # "prod" == production
 # anything else == debug
-let environment = "debug"
-mut xdebug_version = ""
-if ("ENVIRONMENT" in $env) and ($env.ENVIRONMENT != "prod") {
-	$xdebug_version = "-debug"
-}
+let environment = ($env.ENVIRONMENT | default "debug")
 
 # Image name
 let image_name = $"wordpress-redis-pdo"
@@ -58,10 +54,9 @@ let image_name = $"wordpress-redis-pdo"
 # by the data, not the image.
 let image_version = (
 	[
-		$config.wordpress.version
-		$config.php.version
-		$config.redis.version
-		$xdebug_version
+		$"php($config.php.version)"
+		$"redis($config.redis.version)"
+		(if $environment != "prod" {"debug"})
 	]
 	| str join '-'
 	# $xdebug_version may be blank causing an extra '-' at the end of the string.
@@ -91,6 +86,10 @@ log info "========================================\n\n"
 log info "Running pecl install redis"
 timeit {^buildah run $wordpress -- bash -c $"echo | pecl install redis-($config.redis.version)"}
 
+log info $"========================================\n\n"
+log info $"Running docker-php-ext-enable redis"
+timeit {^buildah run $wordpress docker-php-ext-enable redis}
+
 if $environment != "prod" {
 	log info "========================================\n\n"
 	log info "Running apk add linux-headers"
@@ -99,11 +98,12 @@ if $environment != "prod" {
 	log info "========================================\n\n"
 	log info "Running pecl install xdebug"
 	timeit {^buildah run $wordpress -- bash -c $"echo | pecl install xdebug-($config.xdebug.version)"}
+
+	log info $"========================================\n\n"
+	log info $"Running docker-php-ext-enable xdebug"
+	timeit {^buildah run $wordpress docker-php-ext-enable xdebug}
 }
 
-log info $"========================================\n\n"
-log info $"Running docker-php-ext-enable redis"
-timeit {^buildah run $wordpress docker-php-ext-enable redis (if $environment != "prod" {"xdebug"} else {""})}
 
 # Publish the container as an image (in buildah).
 let image = (^buildah commit $wordpress $image_name)
