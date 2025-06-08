@@ -1,0 +1,56 @@
+---
+name: Build WordPress container
+
+on:
+  - push
+
+jobs:
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: wordpress-redis-pdo_mysql
+      REGISTRY: ghcr.io/major
+    steps:
+
+      - name: Clone the repository
+        uses: actions/checkout@v3
+
+      # Use Nushell for all scripts.
+      - uses: hustcer/setup-nu@v3
+        with:
+          # Don't use 0.90 here, as it would be a float number and would be converted to 0.9
+          # you can use v0.90/0.90.0 or '0.90'
+          version: "0.90"
+
+      # - name: Buildah Action
+      #   id: build-image
+      #   uses: redhat-actions/buildah-build@v2
+      #   with:
+      #     image: ${{ env.IMAGE_NAME }}
+      #     tags: latest ${{ github.sha }}
+      #     containerfiles: |
+      #       ./Containerfile
+
+      - name: Build image
+        shell: nu {0}
+        run: |
+          ./wordpress/build.nu
+
+      - name: Log in to the GitHub Container registry
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to GitHub Container Repository
+        id: push-to-ghcr
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+          registry: ${{ env.REGISTRY }}
+
+      - name: Print image URL
+        run: echo "Image pushed to ${{ steps.push-to-ghcr.outputs.registry-paths }}"
