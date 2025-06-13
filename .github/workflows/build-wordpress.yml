@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build image
+    name: Build Wordpress image
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -42,7 +42,7 @@ jobs:
       ################################################################################
       # Production
       ################################################################################
-      - name: Build production image
+      - name: Build Wordpress production image
         id: build-prod-image
         env:
           ENVIRONMENT: prod
