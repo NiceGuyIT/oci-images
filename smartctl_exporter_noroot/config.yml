@@ -1,0 +1,23 @@
+# The variables are separated out to make it easier to update the versions.
+
+# # xdebug provides stack traces and should not be used in production.
+# xdebug:
+#   url: https://pecl.php.net/package/xdebug
+#   version: 3.4.3
+
+# redis:
+#   url: https://pecl.php.net/package/redis
+#   version: 6.2.0
+
+# # The PHP version is used in the WordPress image tag.
+# php:
+#   url: https://www.php.net/supported-versions.php
+#   version: 8.4
+
+# wordpress:
+#   url: https://hub.docker.com/_/wordpress
+#   version: 6.8.1
+
+smartctl_exporter:
+  url: https://hub.docker.com/r/prometheuscommunity/smartctl-exporter/
+  version: v0.14.0
