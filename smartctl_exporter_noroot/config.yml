@@ -1,0 +1,6 @@
+# The variables are separated out to make it easier to update the versions.
+
+
+smartctl_exporter:
+  url: https://hub.docker.com/r/prometheuscommunity/smartctl-exporter/
+  version: v0.14.0
