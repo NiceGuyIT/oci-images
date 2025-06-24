@@ -16,4 +16,6 @@ php:
 
 wordpress:
   url: https://hub.docker.com/_/wordpress
+  # This image version is constructed from the PHP version above and the OS in build.nu.
+  image_url: docker.io/wordpress
   version: 6.8.1
