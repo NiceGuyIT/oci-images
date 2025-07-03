@@ -3,8 +3,10 @@
 name: Build WordPress container
 
 on:
-  - push
-
+  push:
+    paths:
+        - 'wordpress/**'
+  
 jobs:
   build:
     name: Build Wordpress image
