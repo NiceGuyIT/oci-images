@@ -6,6 +6,7 @@ on:
   push:
     paths:
         - 'wordpress/**'
+        - '.github/workflows/build-wordpress.yml'
   
 jobs:
   build:
