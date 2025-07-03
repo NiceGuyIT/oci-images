@@ -15,7 +15,7 @@ def main [] {
 	)
 	if (($namespace.start_uid_namespace.0 | into int) == 0) and (($namespace.start_uid_host.0 | into int) == 0) {
 		log info "Detected root namespace. Rerunning in a 'buildah unshare' environment."
-		^buildah unshare build.nu
+		^buildah unshare ./build.nu
 		exit 0
 	}
 	log info "Running in a 'buildah unshare' environment. Continuing..."
