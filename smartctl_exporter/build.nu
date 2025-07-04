@@ -126,11 +126,11 @@ def main [] {
 	let noroot_name = $config.smartctl_noroot.name
 	let noroot_version = $config.smartctl_noroot.version
 
-	let noroot_ctr = (^buildah commit $smartctl_ctr $noroot_name)
-	log info $"Built image '($noroot_ctr)' version '($noroot_version)'"
+	let noroot_ctr = (^buildah commit --format docker $smartctl_ctr ([$noroot_name, $noroot_version] | str join ':'))
+	log info $"Built image '($noroot_name)' version '($noroot_version)'"
 
 	# Publish the image to Docker for use.
-	^buildah push $noroot_ctr $"docker-daemon:($noroot_ctr):($noroot_version)"
+	^buildah push $noroot_ctr (["docker-daemon", $noroot_name, $noroot_version] | str join ':')
 	log info $"Published image '($noroot_name)' version '($noroot_version)' to Docker."
 
 

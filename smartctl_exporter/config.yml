@@ -9,4 +9,4 @@ smartctl_exporter:
 smartctl_noroot:
   # Published image name and version
   name: "smartctl_exporter"
-  version: "v0.14.0:noroot"
+  version: "v0.14.0-noroot"
