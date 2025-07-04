@@ -140,6 +140,6 @@ def main [] {
 		$output = $env.GITHUB_OUTPUT
 	}
 	$"image=($noroot_name)\n" | save --append $output
-	$"tags=($noroot_name)\n" | save --append $output
+	$"tags=($noroot_version)\n" | save --append $output
 
 }
