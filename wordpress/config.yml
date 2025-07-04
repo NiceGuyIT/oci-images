@@ -19,3 +19,8 @@ wordpress:
   # This image version is constructed from the PHP version above and the OS in build.nu.
   image_url: docker.io/wordpress
   version: 6.8.1
+
+published:
+  # Published image name
+  # The version is comprised of the PHP version, Redis version and if available, "debug" for the xdebug version.
+  name: "wordpress"
