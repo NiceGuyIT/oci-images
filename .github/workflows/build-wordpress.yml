@@ -5,9 +5,9 @@ name: Build WordPress container
 on:
   push:
     paths:
-        - 'wordpress/**'
-        - '.github/workflows/build-wordpress.yml'
-  
+      - 'wordpress/**'
+      - '.github/workflows/build-wordpress.yml'
+
 jobs:
   build:
     name: Build Wordpress image

@@ -3,5 +3,8 @@
   //"image": "mcr.microsoft.com/devcontainers/base:bookworm",
   //"image": "registry.opensuse.org/opensuse-leap-15.0:current",
   "image": "docker.io/opensuse/leap:15.6",
-  "features": {}
+  "features": {},
+  "postCreateCommand": [
+    "zypper --non-interactive install java-21-openjdk-devel git curl tar gzip bzip2 docker"
+  ]
 }

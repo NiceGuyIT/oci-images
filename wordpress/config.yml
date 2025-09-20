@@ -22,5 +22,5 @@ wordpress:
 
 published:
   # Published image name
-  # The version is comprised of the PHP version, Redis version and if available, "debug" for the xdebug version.
+  # The version comprises the PHP version, Redis version and if available, "debug" for the xdebug version.
   name: "wordpress"
