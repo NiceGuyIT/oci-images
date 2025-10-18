@@ -26,16 +26,53 @@ def install-packages []: any -> any {
 	let cmd = ([
 		zypper --non-interactive --gpg-auto-import-keys 'refresh;'
 		zypper --non-interactive 'update;'
-		zypper --non-interactive install ($config.packages | str join ' ');
+		zypper --non-interactive install ($config.packages.list | str join ' ');
 		zypper --non-interactive clean '--all;'
 	] | str join ' ')
 
 	log info $"========================================\n"
-	log info $"[build-image] cmd: ($cmd)"
+	log info $"[install-packages] cmd: ($cmd)"
 	^buildah run $config.buildah.container -- sh -c $'($cmd)'
 	$config
 }
 
+# Install single-file binaries
+def install-binaries []: any -> any {
+	let config = $in
+	use std log
+
+	# Save the binaries to a mounted directory rather than scripting something inside the container.
+	let mountpoint = (^buildah mount $config.buildah.container)
+	const bin_path = '/usr/local/bin'
+
+	log info $"========================================\n"
+	log info $"[install-binaries] mountpoint: ($mountpoint)"
+	$config.binaries.list
+	| each {|it|
+		let url = (
+			{
+				"scheme": "https"
+				"host": $config.binaries.host
+				"path": (
+					[
+						'public'
+						$nu.os-info.name
+						$nu.os-info.arch
+						$it.name
+						$it.version
+						$it.name
+					] | path join
+				)
+			} | url join
+		)
+		log info $"[install-binaries] Installing binary: '($it.name)'"
+		http get $url | save ($"($mountpoint)($bin_path)/($it.name)")
+	}
+	^buildah umount $config.buildah.container
+	$config
+}
+
+# Publish the image to the Docker registry.
 def publish-image []: any -> any {
 	use std log
 	let config = $in
@@ -78,7 +115,9 @@ def build-image []: any -> any {
 	$config.buildah.container = (^buildah from $config.image.url)
 
 	# Install the packages
-	$config | install-packages
+	$config
+	| install-packages
+	| install-binaries
 }
 
 # Main script
