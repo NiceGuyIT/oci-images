@@ -1,10 +1,24 @@
 {
-  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-  //"image": "mcr.microsoft.com/devcontainers/base:bookworm",
-  //"image": "registry.opensuse.org/opensuse-leap-15.0:current",
-  "image": "docker.io/opensuse/leap:15.6",
-  "features": {},
-  "postCreateCommand": [
-    "zypper --non-interactive install java-21-openjdk-devel git curl tar gzip bzip2 docker"
-  ]
+  "image": "ghcr.io/niceguyit/opensuse-leap-base:v15.6-20251018",
+  "postCreateCommand": {
+    "install-prettier": "/usr/local/bin/bun install --global prettier"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Common extensions
+        "esbenp.prettier-vscode",
+        "github.vscode-github-actions",
+        "mikestead.dotenv",
+        "ms-vsliveshare.vsliveshare",
+        "redhat.vscode-yaml",
+        "skellock.just",
+        "streetsidesoftware.code-spell-checker",
+        "tamasfe.even-better-toml",
+        "TheNuProjectContributors.vscode-nushell-lang",
+        "timonwong.shellcheck",
+        "VisualStudioExptTeam.vscodeintellicode"
+      ]
+    }
+  }
 }

@@ -14,6 +14,8 @@ published:
 
 packages:
   list:
+    # sudo may not be needed since the container user is root
+    #- sudo
     # Basic utils
     - vim
     - git
@@ -36,6 +38,8 @@ binaries:
       version: 'v1.1.1'
     - name: btm
       version: '0.10.2'
+    - name: bun
+      version: 'v1.3'
     - name: chezmoi
       version: 'v2.54.0'
     - name: doggo

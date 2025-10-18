@@ -48,7 +48,7 @@ def install-binaries []: any -> any {
 	log info $"========================================\n"
 	log info $"[install-binaries] mountpoint: ($mountpoint)"
 	$config.binaries.list
-	| each {|it|
+	| par-each --threads 4 {|it|
 		let url = (
 			{
 				"scheme": "https"
@@ -67,6 +67,7 @@ def install-binaries []: any -> any {
 		)
 		log info $"[install-binaries] Installing binary: '($it.name)'"
 		http get $url | save ($"($mountpoint)($bin_path)/($it.name)")
+		chmod a+rx $"($mountpoint)($bin_path)/($it.name)"
 	}
 	^buildah umount $config.buildah.container
 	$config
