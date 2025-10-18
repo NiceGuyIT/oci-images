@@ -1,0 +1,30 @@
+---
+# The variables are separated out to make it easier to update.
+
+opensuse_leap:
+  # Docker URL and version
+  url: "docker.io/opensuse/leap"
+  version: "15.6"
+
+published:
+  # Published image name and version
+  name: "opensuse_leap"
+  # The version is populated dynamically with today's date
+  version: "v15.6-YYYYMMDD"
+
+packages:
+  # Basic utils
+  - vim
+  - git
+  - tar
+  - gzip
+  - bzip2
+  - zstd
+  # Needed for remote development with JetBrains
+  - java-21-openjdk-devel
+  # Container tools
+  - buildah
+  - docker
+  - docker-compose
+  - docker-buildx
+
