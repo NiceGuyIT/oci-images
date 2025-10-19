@@ -35,34 +35,33 @@ binaries:
   host: dufs.niceguyit.biz
   list:
     - name: age
-      version: 'v1.1.1'
+      version: "v1.1.1"
     - name: btm
-      version: '0.10.2'
+      version: "0.10.2"
     - name: bun
-      version: 'v1.3'
+      version: "v1.3"
     - name: chezmoi
-      version: 'v2.54.0'
+      version: "v2.54.0"
     - name: doggo
-      version: 'v0.5.7'
+      version: "v0.5.7"
     - name: fd
-      version: '8.7.1'
+      version: "8.7.1"
     - name: gh
-      version: '2.41.0'
+      version: "2.41.0"
     - name: just
-      version: '1.42.4'
+      version: "1.42.4"
     # FIXME: Upgrade Nebula to the latest.
     - name: nebula
-      version: '1.8.0'
+      version: "1.8.0"
     - name: nu
-      version: '0.101.0'
+      version: "0.101.0"
     - name: ouch
-      version: '0.5.1'
+      version: "0.5.1"
     - name: pinger
-      version: 'v1.3.1'
+      version: "v1.3.1"
     - name: rage
-      version: 'v0.11.1'
+      version: "v0.11.1"
     - name: rclone
-      version: 'v1.70.3'
+      version: "v1.70.3"
     - name: starship
-      version: 'v1.22.1'
-
+      version: "v1.22.1"

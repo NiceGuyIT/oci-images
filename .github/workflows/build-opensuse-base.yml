@@ -5,8 +5,8 @@ name: Build openSUSE container
 on:
   push:
     paths:
-      - 'opensuse-base/**'
-      - '.github/workflows/build-opensuse-base.yml'
+      - "opensuse-base/**"
+      - ".github/workflows/build-opensuse-base.yml"
 
 jobs:
   build:
@@ -23,7 +23,6 @@ jobs:
       REGISTRY_PASSWORD: ${{ github.token }}
 
     steps:
-
       - name: Clone the repository
         uses: actions/checkout@v3
 

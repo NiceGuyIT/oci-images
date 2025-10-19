@@ -1,24 +1,22 @@
 {
-  "image": "ghcr.io/niceguyit/opensuse-leap-base:v15.6-20251018",
-  "postCreateCommand": {
-    "install-prettier": "/usr/local/bin/bun install --global prettier"
-  },
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        // Common extensions
-        "esbenp.prettier-vscode",
-        "github.vscode-github-actions",
-        "mikestead.dotenv",
-        "ms-vsliveshare.vsliveshare",
-        "redhat.vscode-yaml",
-        "skellock.just",
-        "streetsidesoftware.code-spell-checker",
-        "tamasfe.even-better-toml",
-        "TheNuProjectContributors.vscode-nushell-lang",
-        "timonwong.shellcheck",
-        "VisualStudioExptTeam.vscodeintellicode"
-      ]
-    }
-  }
+	"image": "ghcr.io/niceguyit/opensuse-leap-base:v15.6-20251018",
+	"postCreateCommand": {
+		"install-prettier": "/usr/local/bin/bun install --global prettier",
+		"install-cspell": "/usr/local/bin/bun install --global cspell"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				// Common extensions
+				"esbenp.prettier-vscode",
+				"github.vscode-github-actions",
+				"mikestead.dotenv",
+				"skellock.just",
+				"streetsidesoftware.code-spell-checker",
+				"TheNuProjectContributors.vscode-nushell-lang",
+				"timonwong.shellcheck",
+				"VisualStudioExptTeam.vscodeintellicode"
+			]
+		}
+	}
 }

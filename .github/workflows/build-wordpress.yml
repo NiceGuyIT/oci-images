@@ -5,8 +5,8 @@ name: Build WordPress container
 on:
   push:
     paths:
-      - 'wordpress/**'
-      - '.github/workflows/build-wordpress.yml'
+      - "wordpress/**"
+      - ".github/workflows/build-wordpress.yml"
 
 jobs:
   build:
@@ -23,7 +23,6 @@ jobs:
       REGISTRY_PASSWORD: ${{ github.token }}
 
     steps:
-
       - name: Clone the repository
         uses: actions/checkout@v3
 
@@ -93,4 +92,3 @@ jobs:
 
       - name: Print image URL (debug)
         run: echo "Debug image pushed to ${{ steps.push-to-ghcr-debug.outputs.registry-paths }}"
-

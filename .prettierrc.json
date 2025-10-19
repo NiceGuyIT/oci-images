@@ -1,0 +1,23 @@
+{
+	"printWidth": 120,
+	"singleQuote": false,
+	"tabWidth": 4,
+	"trailingComma": "es5",
+	"useTabs": true,
+	"overrides": [
+		{
+			"files": [".github/**/*.yml", ".github/**/*.yaml"],
+			"options": {
+				"tabWidth": 4,
+				"useTabs": false
+			}
+		},
+		{
+			"files": ["**/*.yml", "**/*.yaml"],
+			"options": {
+				"tabWidth": 2,
+				"useTabs": false
+			}
+		}
+	]
+}

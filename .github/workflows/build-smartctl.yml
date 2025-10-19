@@ -5,8 +5,8 @@ name: Build smartctl_exporter container
 on:
   push:
     paths:
-      - 'smartctl_exporter/**'
-      - '.github/workflows/build-smartctl.yml'
+      - "smartctl_exporter/**"
+      - ".github/workflows/build-smartctl.yml"
 
 jobs:
   build:
@@ -23,7 +23,6 @@ jobs:
       REGISTRY_PASSWORD: ${{ github.token }}
 
     steps:
-
       - name: Clone the repository
         uses: actions/checkout@v3
 
