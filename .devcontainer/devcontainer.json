@@ -1,4 +1,6 @@
 {
+	// Use a Dockerfile or Docker Compose file: https://containers.dev/guide/dockerfile
+    // Use an image: https://github.com/devcontainers/images/blob/main/src/base-debian/history/1.0.9.md
 	"image": "ghcr.io/niceguyit/opensuse-leap-base:v15.6-20251018",
 	"postCreateCommand": {
 		"install-prettier": "/usr/local/bin/bun install --global prettier",
@@ -18,5 +20,17 @@
 				"VisualStudioExptTeam.vscodeintellicode"
 			]
 		}
-	}
+	},
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root",
+	// https://github.com/microsoft/vscode-dev-containers/tree/main/containers/docker-from-docker
+	"overrideCommand": false,
+	"runArgs": [
+		"--init",
+		"--privileged"
+	],
+	"mounts": [
+	//    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+	//    "source=/var/lib/docker,target=/var/lib/docker,type=bind"
+	]
 }

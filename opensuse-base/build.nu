@@ -4,7 +4,11 @@
 def load-config []: [nothing -> any, string -> any] {
 	try {
 		mut config = ($in | default "config.yml" | open)
-		$config.published.version = $"v($config.opensuse_leap.version)-(date now | format date '%Y%m%d')"
+		$config.published.version = ([
+			$config.published.version
+			$config.opensuse.name
+			$config.opensuse.version
+		] | str join '-')
 		# TODO: Make this configurable.
 		$config.output.log = 'output.log'
 		$config
@@ -21,13 +25,13 @@ def install-packages []: any -> any {
 	let config = $in
 
 	# Refresh the repos, update the system, and install packages.
-	# Note 1: The semicolon separates the commands because they are joined with a space.
-	# Note 2: Quotes are needed to prevent Nushell from interpreting the semicolon as the end of the list.
+	# Note: The semicolon separates the commands because they are joined with a space.
+	# Quotes are needed to prevent Nushell from interpreting the semicolon as the end of the list.
 	let cmd = ([
-		zypper --non-interactive --gpg-auto-import-keys 'refresh;'
-		zypper --non-interactive 'update;'
-		zypper --non-interactive install ($config.packages.list | str join ' ');
-		zypper --non-interactive clean '--all;'
+		zypper --non-interactive --gpg-auto-import-keys refresh ';'
+		zypper --non-interactive update ';'
+		zypper --non-interactive install ($config.packages.list | str join ' ') ';'
+		zypper --non-interactive clean --all ';'
 	] | str join ' ')
 
 	log info $"========================================\n"
@@ -49,6 +53,7 @@ def install-binaries []: any -> any {
 	log info $"[install-binaries] mountpoint: ($mountpoint)"
 	$config.binaries.list
 	| par-each --threads 4 {|it|
+		let filename = ($it.file? | default $it.name)
 		let url = (
 			{
 				"scheme": "https"
@@ -60,17 +65,53 @@ def install-binaries []: any -> any {
 						$nu.os-info.arch
 						$it.name
 						$it.version
-						$it.name
+						$filename
 					] | path join
 				)
 			} | url join
 		)
-		log info $"[install-binaries] Installing binary: '($it.name)'"
-		http get $url | save ($"($mountpoint)($bin_path)/($it.name)")
-		chmod a+rx $"($mountpoint)($bin_path)/($it.name)"
+		log info $"[install-binaries] Installing binary: '($filename)'"
+		http get $url | save ($"($mountpoint)($bin_path)/($filename)")
+		chmod a+rx $"($mountpoint)($bin_path)/($filename)"
 	}
 	^buildah umount $config.buildah.container
 	$config
+}
+
+# Add the user to the container
+def add-user []: any -> any {
+	let config = $in
+	use std log
+
+	# Add the "dev" user and configure their environment
+	const container_user = 'dev'
+	let sudoer_text = $"'# User rules for ($container_user)\\n($container_user) ALL=\(ALL) NOPASSWD:ALL\\n'"
+	let chezmoi_text = (
+		{
+			"sourceDir": $"/home/($container_user)/projects/dotfiles",
+			"data": {
+				"git": {
+					"email": "me@example.com",
+					"name": "my name"
+				}
+			}
+		} | to json --raw
+	)
+	let cmd = ([
+		echo "/usr/local/bin/nu" >/etc/shells ';'
+		useradd --groups 'users,docker' --shell /usr/local/bin/nu --create-home $container_user ';'
+		echo -e $sudoer_text > $"/etc/sudoers.d/50-($container_user)-user" ';'
+		mkdir -p ~($container_user)/projects ~($container_user)/.config/chezmoi ~($container_user)/.bun ';'
+		git clone --depth 1 $config.dotfiles.repo ~($container_user)/projects/dotfiles ';'
+		echo $"'($chezmoi_text)'" > ~($container_user)/.config/chezmoi/chezmoi.jsonc ';'
+		chown -R dev:users ~($container_user) ';'
+		su --login --command "'^/usr/local/bin/chezmoi apply'" $container_user
+	] | str join ' ')
+
+	log info $"========================================\n"
+	log info $"[build-image] Creating ($container_user) user. cmd: ($cmd)"
+	^buildah run $config.buildah.container -- sh -c $'($cmd)'
+	^buildah config $config.buildah.container --user $container_user
 }
 
 # Publish the image to the Docker registry.
@@ -108,17 +149,18 @@ def build-image []: any -> any {
 	use std log
 	mut config = $in
 
-	# opensuse_leap image
-	$config.image.url = $"($config.opensuse_leap.url):($config.opensuse_leap.version)"
+	# opensuse image
+	$config.image.url = $"($config.opensuse.url):($config.opensuse.version)"
 
 	log info $"[build-image] ========================================\n"
-	log info $"[build-image] Pulling opensuse_leap image from '($config.image.url)'"
+	log info $"[build-image] Pulling opensuse image from '($config.image.url)'"
 	$config.buildah.container = (^buildah from $config.image.url)
 
 	# Install the packages
 	$config
 	| install-packages
 	| install-binaries
+	| add-user
 }
 
 # Main script

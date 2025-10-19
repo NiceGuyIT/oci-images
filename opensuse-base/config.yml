@@ -1,21 +1,22 @@
 ---
 # The variables are separated out to make it easier to update.
 
-opensuse_leap:
+opensuse:
   # Docker URL and version
+  name: leap
   url: "docker.io/opensuse/leap"
   version: "15.6"
 
 published:
   # Published image name and version
-  name: "opensuse-leap-base"
-  # The version is populated dynamically with today's date
-  version: "v15.6-YYYYMMDD"
+  name: "opensuse-base"
+  # The openSUSE name and version is appended: v0.1.0-leap-15.6
+  version: "v0.1.0"
 
 packages:
   list:
-    # sudo may not be needed since the container user is root
-    #- sudo
+    # The user inside the container is "dev"
+    - sudo
     # Basic utils
     - vim
     - git
@@ -30,6 +31,7 @@ packages:
     - docker
     - docker-compose
     - docker-buildx
+    - fuse-overlayfs
 
 binaries:
   host: dufs.niceguyit.biz
@@ -55,6 +57,21 @@ binaries:
       version: "1.8.0"
     - name: nu
       version: "0.101.0"
+    - name: nu
+      version: "0.101.0"
+      file: nu_plugin_formats
+    - name: nu
+      version: "0.101.0"
+      file: nu_plugin_gstat
+    - name: nu
+      version: "0.101.0"
+      file: nu_plugin_inc
+    - name: nu
+      version: "0.101.0"
+      file: nu_plugin_polars
+    - name: nu
+      version: "0.101.0"
+      file: nu_plugin_query
     - name: ouch
       version: "0.5.1"
     - name: pinger
@@ -65,3 +82,6 @@ binaries:
       version: "v1.70.3"
     - name: starship
       version: "v1.22.1"
+
+dotfiles:
+  repo: https://github.com/NiceGuyIT/dotfiles.git

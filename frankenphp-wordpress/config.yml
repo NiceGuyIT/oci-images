@@ -1,0 +1,22 @@
+---
+# The variables are separated out to make it easier to update.
+
+php:
+  version: "8.4"
+
+wordpress:
+  version: latest
+
+frankenwp:
+  # Docker URL and version
+  url: "docker.io/dunglas/frankenphp"
+  version: builder-php8.4
+
+caddy:
+  url: docker.io/caddy
+  version: builder
+
+published:
+  # Published image name and version
+  name: "frankenphp-wordpress"
+  version: "v0.1.0"
