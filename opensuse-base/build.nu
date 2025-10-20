@@ -36,7 +36,7 @@ def install-packages []: any -> any {
 
 	log info $"========================================\n"
 	log info $"[install-packages] cmd: ($cmd)"
-	^buildah run $config.buildah.container -- sh -c $'($cmd)'
+	^buildah run $config.buildah.container -- /bin/sh -c $'($cmd)'
 	$config
 }
 
@@ -97,21 +97,26 @@ def add-user []: any -> any {
 			}
 		} | to json --raw
 	)
+
+	# Using nu as a shell prevents JetBrains and VSCode from connecting to the container (using SSH).
+	const login_shell = '/usr/bin/bash'
 	let cmd = ([
 		echo "/usr/local/bin/nu" >/etc/shells ';'
-		useradd --groups 'users,docker' --shell /usr/local/bin/nu --create-home $container_user ';'
+		useradd --groups 'users,docker' --shell $login_shell --create-home $container_user ';'
 		echo -e $sudoer_text > $"/etc/sudoers.d/50-($container_user)-user" ';'
 		mkdir -p ~($container_user)/projects ~($container_user)/.config/chezmoi ~($container_user)/.bun ';'
 		git clone --depth 1 $config.dotfiles.repo ~($container_user)/projects/dotfiles ';'
 		echo $"'($chezmoi_text)'" > ~($container_user)/.config/chezmoi/chezmoi.jsonc ';'
 		chown -R dev:users ~($container_user) ';'
-		su --login --command "'^/usr/local/bin/chezmoi apply'" $container_user
+		su --login --command "'/usr/local/bin/chezmoi apply'" $container_user
 	] | str join ' ')
 
 	log info $"========================================\n"
 	log info $"[build-image] Creating ($container_user) user. cmd: ($cmd)"
-	^buildah run $config.buildah.container -- sh -c $'($cmd)'
-	^buildah config $config.buildah.container --user $container_user
+	^buildah run $config.buildah.container -- /bin/sh -c $'($cmd)'
+	^buildah config --user $container_user $config.buildah.container
+	# ^buildah config --shell '/bin/sh -c' $config.buildah.container
+	$config
 }
 
 # Publish the image to the Docker registry.

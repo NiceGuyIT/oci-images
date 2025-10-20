@@ -19,11 +19,13 @@ packages:
     - sudo
     # Basic utils
     - vim
+    - vim-data
     - git
     - tar
     - gzip
     - bzip2
     - zstd
+    - which
     # Needed for remote development with JetBrains
     - java-21-openjdk-devel
     # Container tools
@@ -78,6 +80,8 @@ binaries:
       version: "v1.3.1"
     - name: rage
       version: "v0.11.1"
+    - name: rg
+      version: "14.0.3"
     - name: rclone
       version: "v1.70.3"
     - name: starship
