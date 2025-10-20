@@ -26,6 +26,7 @@ packages:
     - bzip2
     - zstd
     - which
+    - nodejs-common
     # Needed for remote development with JetBrains
     - java-21-openjdk-devel
     # Container tools
