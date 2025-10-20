@@ -54,9 +54,13 @@ binaries:
       version: "2.41.0"
     - name: just
       version: "1.42.4"
+    - name: kingfisher
+      version: "1.58.0"
     # FIXME: Upgrade Nebula to the latest.
     - name: nebula
       version: "1.8.0"
+    - name: noseyparker
+      version: "v0.24.0"
     - name: nu
       version: "0.101.0"
     - name: nu
@@ -86,6 +90,8 @@ binaries:
       version: "v1.70.3"
     - name: starship
       version: "v1.22.1"
+    - name: trufflehog
+      version: "3.90.11"
 
 dotfiles:
   repo: https://github.com/NiceGuyIT/dotfiles.git
