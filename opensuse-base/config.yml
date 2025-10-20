@@ -11,7 +11,7 @@ published:
   # Published image name and version
   name: "opensuse-base"
   # The openSUSE name and version is appended: v0.1.1-leap-15.6
-  version: "v0.1.2"
+  version: "v0.1.3"
 
 packages:
   list:
@@ -28,6 +28,7 @@ packages:
     - which
     # Required for Forgejo actions
     - nodejs-common
+    - ssh
     # Needed for remote development with JetBrains
     - java-21-openjdk-devel
     # Container tools
