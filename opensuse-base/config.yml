@@ -28,7 +28,7 @@ packages:
     - which
     # Required for Forgejo actions
     - nodejs-common
-    - ssh
+    - openssh-clients
     # Needed for remote development with JetBrains
     - java-21-openjdk-devel
     # Container tools
