@@ -26,7 +26,8 @@ packages:
     - bzip2
     - zstd
     - which
-    - nodejs-common # required for forgejo actions
+    # Required for Forgejo actions
+    - nodejs-common
     # Needed for remote development with JetBrains
     - java-21-openjdk-devel
     # Container tools
