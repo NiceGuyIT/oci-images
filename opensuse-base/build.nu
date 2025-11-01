@@ -166,6 +166,11 @@ def build-image []: any -> any {
 	| install-packages
 	| install-binaries
 	| add-user
+
+	# TODO: Add programs:
+	# NVM: https://github.com/nvm-sh/nvm/blob/master/install.sh
+	# npm: https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
+	# yarn: https://yarnpkg.com/getting-started/install
 }
 
 # Main script

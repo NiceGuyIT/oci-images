@@ -44,16 +44,26 @@
       ]
     }
   },
-  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-  // "remoteUser": "root",
+  // Docker-from-docker uses the host's docker socket to gain access to Docker.
   // https://github.com/microsoft/vscode-dev-containers/tree/main/containers/docker-from-docker
-  //"overrideCommand": false,
   "runArgs": [
-    //"--init",
-    //"--privileged"
+    "--init",
   ],
   "mounts": [
-    // "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
-    // "source=/var/lib/docker,target=/var/lib/docker,type=bind"
-  ]
+     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+  ],
+  // Docker-in-Docker runs Docker inside the container without connecting to the host.
+  // https://github.com/microsoft/vscode-dev-containers/tree/main/containers/docker-in-docker
+  // Running "Docker in Docker" requires the parent container to be run as --privileged. This definition
+  // also adds a /usr/local/share/docker-init.sh ENTRYPOINT script that, spawns the dockerd process,
+  // so overrideCommand: false also needs to be set in devcontainer.json
+  // "remoteUser": "root",
+  //"runArgs": [
+    //"--init",
+    //"--privileged"
+  //],
+  //"mounts": [
+  //]
+  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+  //"overrideCommand": false,
 }
