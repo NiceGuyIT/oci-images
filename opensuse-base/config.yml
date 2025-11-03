@@ -37,6 +37,7 @@ packages:
     - docker-compose
     - docker-buildx
     - fuse-overlayfs
+    - yarn
 
 binaries:
   host: dufs.niceguyit.biz
@@ -95,6 +96,10 @@ binaries:
       version: "v1.22.1"
     - name: trufflehog
       version: "3.90.11"
+
+node:
+  enable: true
+  version: "25.1.0"
 
 dotfiles:
   repo: https://github.com/NiceGuyIT/dotfiles.git

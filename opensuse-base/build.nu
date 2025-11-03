@@ -149,6 +149,18 @@ def publish-image []: any -> any {
 	$config
 }
 
+def install-node [ version: string ]: any -> any {
+	use std log
+	let config = $in
+
+
+	log info $"========================================\n"
+	log info $"[install-node]"
+	^buildah run $config.buildah.container "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash"
+	^buildah run $config.buildah.container $"nvm install ($version)"
+	$config
+}
+
 # Build the image
 def build-image []: any -> any {
 	use std log
@@ -168,6 +180,10 @@ def build-image []: any -> any {
 	| add-user
 
 	# TODO: Add programs:
+	# Install node version via nvm
+	if ($config.node.enable) {
+		$config | install-node $config.node.version
+	}
 	# NVM: https://github.com/nvm-sh/nvm/blob/master/install.sh
 	# npm: https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
 	# yarn: https://yarnpkg.com/getting-started/install
