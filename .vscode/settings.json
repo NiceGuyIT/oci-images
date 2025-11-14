@@ -22,5 +22,6 @@
 	"workbench.editor.closeOnFileDelete": true,
 	"workbench.editor.enablePreview": false,
 	"workbench.editor.revealIfOpen": true,
-	"yaml.format.enable": true
+	"yaml.format.enable": true,
+	"cSpell.words": ["NVM"]
 }

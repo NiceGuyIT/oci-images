@@ -78,6 +78,40 @@ def install-binaries []: any -> any {
 	$config
 }
 
+# Install user scripts
+def install-user-scripts []: any -> any {
+	let config = $in
+	use std log
+
+	# Add the "dev" user and configure their environment
+	const container_user = 'dev'
+
+	# Save the binaries to a mounted directory rather than scripting something inside the container.
+	let mountpoint = (^buildah mount $config.buildah.container)
+	let bin_path = ([home $container_user .local bin] | path join)
+	mkdir $bin_path
+
+	log info $"========================================\n"
+	log info $"[install-user-scripts] mountpoint: ($mountpoint)"
+	glob --no-dir --no-symlink local-bin/*.nu
+	| each {|it|
+		cp $it $"($mountpoint)($bin_path)/($it | path basename)"
+	}
+
+	# Execute the scripts as the user.
+	let cmd = ([
+		su --login --command $"'($bin_path)/claude-download.nu'" $container_user ';'
+		su --login --command $"'($bin_path)/nvm-install.nu'" $container_user ';'
+		su --login --command $"'/bin/bash -c \"PROFILE=/dev/null source ~/.nvm/nvm.sh && nvm install 20\"'" $container_user
+	] | str join ' ')
+
+	log info $"========================================\n"
+	log info $"[install-user-scripts] Installing user scripts for `($container_user)`. cmd: ($cmd)"
+	^buildah run $config.buildah.container -- /bin/sh -c $'($cmd)'
+	$config
+}
+
+
 # Add the user to the container
 def add-user []: any -> any {
 	let config = $in
@@ -166,6 +200,7 @@ def build-image []: any -> any {
 	| install-packages
 	| install-binaries
 	| add-user
+	| install-user-scripts
 
 	# TODO: Add programs:
 	# NVM: https://github.com/nvm-sh/nvm/blob/master/install.sh
