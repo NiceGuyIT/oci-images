@@ -88,10 +88,19 @@ def install-user-scripts []: any -> any {
 	const container_shell = '/usr/local/bin/nu'
 
 	# Execute the scripts as the user.
+	# Note: Nushell code needs to be in quotes so it is passed to buildah as a string.
 	let cmd = ([
+		# claude
 		use claude.nu * ';'
 		claude download ';'
+
+		# nvm and node
 		nvm-install.nu ';'
+
+		# Prettier and Cspell
+		`'if not (which prettier) {^bun install --global prettier}'` ';'
+		`'if not (which cspell) {^bun install --global cpsell}'` ';'
+
 		# Use this for debugging purposes.
 		# '$env.PATH' ';'
 	] | str join ' ')
@@ -187,7 +196,6 @@ def build-image []: any -> any {
 	log info $"[build-image] ========================================\n"
 	log info $"[build-image] Pulling opensuse image from '($config.image.url)'"
 	$config.buildah.container = (^buildah from $config.image.url)
-	# $config.buildah.container = 'b0cc9405ec4d'
 
 	# Install the packagesz
 	$config
