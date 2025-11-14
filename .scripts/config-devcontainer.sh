@@ -32,17 +32,17 @@ if [[ -d /.jbdevcontainer/ ]]
 then
 
   # Chezmoi uses $XDG_CONFIG_HOME for the config directory and $XDG_DATA_HOME for the data directory.
-  if [[ -d /.jbdevcontainer/config/ && ! -e /.jbdevcontainer/config/chezmoi ]]
+  if [[ -d /.jbdevcontainer/config/ ]] && [[ ! -e /.jbdevcontainer/config/chezmoi ]]
   then
     ln -s ~/.config/chezmoi /.jbdevcontainer/config/
   fi
-  if [[ -d /.jbdevcontainer/data/ && ! -e /.jbdevcontainer/data/chezmoi ]]
+  if [[ -d /.jbdevcontainer/data/ ]] && [[ ! -e /.jbdevcontainer/data/chezmoi ]]
   then
     ln -s ~/.config/chezmoi /.jbdevcontainer/data/
   fi
 
   # Nushell uses $XDG_CONFIG_HOME for the config directory.
-  if [[ -d /.jbdevcontainer/config/ && ! -e /.jbdevcontainer/config/nushell ]]
+  if [[ -d /.jbdevcontainer/config/ ]] && [[ ! -e /.jbdevcontainer/config/nushell ]]
   then
     ln -s ~/.config/nushell /.jbdevcontainer/config/
   fi
