@@ -85,29 +85,22 @@ def install-user-scripts []: any -> any {
 
 	# Add the "dev" user and configure their environment
 	const container_user = 'dev'
-
-	# Save the binaries to a mounted directory rather than scripting something inside the container.
-	let mountpoint = (^buildah mount $config.buildah.container)
-	let bin_path = ([home $container_user .local bin] | path join)
-	mkdir $bin_path
-
-	log info $"========================================\n"
-	log info $"[install-user-scripts] mountpoint: ($mountpoint)"
-	glob --no-dir --no-symlink local-bin/*.nu
-	| each {|it|
-		cp $it $"($mountpoint)($bin_path)/($it | path basename)"
-	}
+	const container_shell = '/usr/local/bin/nu'
 
 	# Execute the scripts as the user.
 	let cmd = ([
-		su --login --command $"'($bin_path)/claude-download.nu'" $container_user ';'
-		su --login --command $"'($bin_path)/nvm-install.nu'" $container_user ';'
-		su --login --command $"'/bin/bash -c \"PROFILE=/dev/null source ~/.nvm/nvm.sh && nvm install 20\"'" $container_user
+		use claude.nu * ';'
+		claude download ';'
+		nvm-install.nu ';'
+		# Use this for debugging purposes.
+		# '$env.PATH' ';'
 	] | str join ' ')
 
 	log info $"========================================\n"
-	log info $"[install-user-scripts] Installing user scripts for `($container_user)`. cmd: ($cmd)"
-	^buildah run $config.buildah.container -- /bin/sh -c $'($cmd)'
+	log info $"[install-user-scripts] Installing user scripts for `($container_user)`"
+	log info $"[install-user-scripts] cmd: ($cmd)"
+	print ""
+	^buildah run --user $container_user $config.buildah.container -- $container_shell --login --commands $'($cmd)'
 	$config
 }
 
@@ -194,8 +187,9 @@ def build-image []: any -> any {
 	log info $"[build-image] ========================================\n"
 	log info $"[build-image] Pulling opensuse image from '($config.image.url)'"
 	$config.buildah.container = (^buildah from $config.image.url)
+	# $config.buildah.container = 'b0cc9405ec4d'
 
-	# Install the packages
+	# Install the packagesz
 	$config
 	| install-packages
 	| install-binaries
@@ -203,8 +197,6 @@ def build-image []: any -> any {
 	| install-user-scripts
 
 	# TODO: Add programs:
-	# NVM: https://github.com/nvm-sh/nvm/blob/master/install.sh
-	# npm: https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
 	# yarn: https://yarnpkg.com/getting-started/install
 }
 
