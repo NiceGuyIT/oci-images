@@ -95,10 +95,10 @@ def install-user-scripts []: any -> any {
 		nvm-install.nu
 
 		# Prettier and Cspell
-		if not \(which prettier\) {^bun install --global prettier}
-		if not \(which cspell\) {^bun install --global cspell}
-		if not \(which corepack\) {^bun install --global corepack}
-		if not \(which claude-code\) {^bun install --global @anthropic-ai/claude-code}
+		if \(which prettier | length\) == 0 {^bun install --global prettier}
+		if \(which cspell | length\) == 0 {^bun install --global cspell}
+		if \(which corepack | length\) == 0 {^bun install --global corepack}
+		if \(which claude-code | length\) == 0 {^bun install --global @anthropic-ai/claude-code}
 
 		# Rustup
 		http get https://sh.rustup.rs | save ($rustup)
