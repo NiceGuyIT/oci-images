@@ -43,4 +43,9 @@ then
     ln -s ~/.config/nushell /.jbdevcontainer/config/
   fi
 
+  # Bun uses $XDG_CONFIG_HOME the .bun directory.
+  if [[ ! -e /.jbdevcontainer/config/chezmoi ]]
+  then
+    ln -s ~/.bun /.jbdevcontainer/.bun/
+  fi
 fi

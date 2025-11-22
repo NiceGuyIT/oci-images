@@ -86,20 +86,25 @@ def install-user-scripts []: any -> any {
 	# Add the "dev" user and configure their environment
 	const container_user = 'dev'
 	const container_shell = '/usr/local/bin/nu'
+	const rustup = '/tmp/rustup.sh'
 
 	# Execute the scripts as the user.
 	# Note: Nushell code needs to be in quotes so it is passed to buildah as a string.
 	let cmd = ([
-		# claude
-		use claude.nu * ';'
-		claude download ';'
-
 		# nvm and node
 		nvm-install.nu ';'
 
 		# Prettier and Cspell
 		`'if not (which prettier) {^bun install --global prettier}'` ';'
-		`'if not (which cspell) {^bun install --global cpsell}'` ';'
+		`'if not (which cspell) {^bun install --global cspell}'` ';'
+		`'if not (which corepack) {^bun install --global corepack}'` ';'
+		`'if not (which claude-code) {^bun install --global @anthropic-ai/claude-code}'` ';'
+
+		# Rustup
+		$"'http get https://sh.rustup.rs | save ($rustup)'" ';'
+		chmod a+x $rustup ';'
+		$rustup -y --no-modify-path ';'
+		rm $rustup ';'
 
 		# Use this for debugging purposes.
 		# '$env.PATH' ';'
@@ -197,7 +202,7 @@ def build-image []: any -> any {
 	log info $"[build-image] Pulling opensuse image from '($config.image.url)'"
 	$config.buildah.container = (^buildah from $config.image.url)
 
-	# Install the packagesz
+	# Install the packages
 	$config
 	| install-packages
 	| install-binaries

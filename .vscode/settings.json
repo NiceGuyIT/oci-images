@@ -23,5 +23,5 @@
 	"workbench.editor.enablePreview": false,
 	"workbench.editor.revealIfOpen": true,
 	"yaml.format.enable": true,
-	"cSpell.words": ["NVM"]
+	"cSpell.words": ["buildah", "NVM", "rustup", "usr"]
 }

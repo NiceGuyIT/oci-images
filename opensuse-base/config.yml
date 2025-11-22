@@ -37,6 +37,10 @@ packages:
     - docker-compose
     - docker-buildx
     - fuse-overlayfs
+    # Development
+    - clang
+    - libopenssl-devel
+    - gcc
 
 binaries:
   host: dufs.niceguyit.biz
