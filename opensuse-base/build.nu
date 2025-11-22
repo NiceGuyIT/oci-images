@@ -102,7 +102,7 @@ def install-user-scripts []: any -> any {
 
 		# Rustup
 		http get https://sh.rustup.rs | save ($rustup)
-		if \(($rustup) | path exists\) {
+		if \('($rustup)' | path exists\) {
 			print 'Downloaded rustup. Installing rustup...'
 			chmod a+x ($rustup)
 			^($rustup) -y --no-modify-path
