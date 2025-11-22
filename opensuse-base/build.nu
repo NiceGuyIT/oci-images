@@ -89,32 +89,37 @@ def install-user-scripts []: any -> any {
 	const rustup = '/tmp/rustup.sh'
 
 	# Execute the scripts as the user.
-	# Note: Nushell code needs to be in quotes so it is passed to buildah as a string.
-	let cmd = ([
+	# Note: Escapes are allowed in double quotes but not single quotes or backticks.
+	let cmd = $"
 		# nvm and node
-		nvm-install.nu ';'
+		nvm-install.nu
 
 		# Prettier and Cspell
-		`'if not (which prettier) {^bun install --global prettier}'` ';'
-		`'if not (which cspell) {^bun install --global cspell}'` ';'
-		`'if not (which corepack) {^bun install --global corepack}'` ';'
-		`'if not (which claude-code) {^bun install --global @anthropic-ai/claude-code}'` ';'
+		if not \(which prettier\) {^bun install --global prettier}
+		if not \(which cspell\) {^bun install --global cspell}
+		if not \(which corepack\) {^bun install --global corepack}
+		if not \(which claude-code\) {^bun install --global @anthropic-ai/claude-code}
 
 		# Rustup
-		$"'http get https://sh.rustup.rs | save ($rustup)'" ';'
-		chmod a+x $rustup ';'
-		$rustup -y --no-modify-path ';'
-		rm $rustup ';'
+		http get https://sh.rustup.rs | save ($rustup)
+		if \(($rustup) | path exists\) {
+			print 'Downloaded rustup. Installing rustup...'
+			chmod a+x ($rustup)
+			^($rustup) -y --no-modify-path
+			rm ($rustup)
+		} else {
+			print 'Failed to download rustup'
+		}
 
 		# Use this for debugging purposes.
-		# '$env.PATH' ';'
-	] | str join ' ')
+		# '$env.PATH'
+	"
 
 	log info $"========================================\n"
-	log info $"[install-user-scripts] Installing user scripts for `($container_user)`"
+	log info $"[install-user-scripts] Installing Rustup for `($container_user)`"
 	log info $"[install-user-scripts] cmd: ($cmd)"
 	print ""
-	^buildah run --user $container_user $config.buildah.container -- $container_shell --login --commands $'($cmd)'
+	^buildah run --user $container_user $config.buildah.container -- $container_shell --login --commands $cmd
 	$config
 }
 
@@ -208,9 +213,6 @@ def build-image []: any -> any {
 	| install-binaries
 	| add-user
 	| install-user-scripts
-
-	# TODO: Add programs:
-	# yarn: https://yarnpkg.com/getting-started/install
 }
 
 # Main script
@@ -218,7 +220,7 @@ def main [] {
 	use std log
 
 	# Check if the environment is suitable for Buildah. This execs the calling script in the user namespace
-	# using "buildah unshare buildnu"
+	# using "buildah unshare build.nu"
 	use ../buildah-wrapper.nu *
 	check-environment
 
