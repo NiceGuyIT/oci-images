@@ -111,7 +111,7 @@ def add-user []: any -> any {
 		chown -R dev:users ~($container_user) ';'
 		# TODO: Set the umask before running chezmoi
 		su --login --command "'sh -c \'umask\''" $container_user ';'
-		su --login --command "'/usr/local/bin/chezmoi apply --verbose --no-tty --no-pager'" $container_user ';'
+		su --login --command "'/usr/local/bin/chezmoi apply --no-tty --no-pager'" $container_user ';'
 	] | str join ' ')
 
 	log info $"========================================\n"
