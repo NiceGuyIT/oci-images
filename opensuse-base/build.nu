@@ -29,9 +29,9 @@ def install-packages []: any -> any {
 	# Quotes are needed to prevent Nushell from interpreting the semicolon as the end of the list.
 	let cmd = ([
 		zypper --non-interactive --gpg-auto-import-keys refresh ';'
-		zypper --non-interactive update ';'
+		#zypper --non-interactive update ';'
 		zypper --non-interactive install ($config.packages.list | str join ' ') ';'
-		zypper --non-interactive clean --all ';'
+		#zypper --non-interactive clean --all ';'
 	] | str join ' ')
 
 	log info $"========================================\n"
@@ -78,6 +78,50 @@ def install-binaries []: any -> any {
 	$config
 }
 
+
+# Add the user to the container
+def add-user []: any -> any {
+	let config = $in
+	use std log
+
+	# Add the "dev" user and configure their environment
+	const container_user = 'dev'
+	let sudoer_text = $"'# User rules for ($container_user)\\n($container_user) ALL=\(ALL) NOPASSWD:ALL\\n'"
+	let chezmoi_text = (
+		{
+			"sourceDir": $"/home/($container_user)/projects/dotfiles",
+			"data": {
+				"git": {
+					"email": "me@example.com",
+					"name": "my name"
+				}
+			}
+		} | to json --raw
+	)
+
+	# Using nu as a shell prevents JetBrains and VSCode from connecting to the container (using SSH).
+	const login_shell = '/usr/bin/bash'
+	let cmd = ([
+		echo "/usr/local/bin/nu" >/etc/shells ';'
+		useradd --groups 'users,docker' --shell $login_shell --create-home $container_user ';'
+		echo -e $sudoer_text > $"/etc/sudoers.d/50-($container_user)-user" ';'
+		mkdir -p ~($container_user)/projects ~($container_user)/.config/chezmoi ~($container_user)/.bun ';'
+		git clone --depth 1 $config.dotfiles.repo ~($container_user)/projects/dotfiles ';'
+		echo $"'($chezmoi_text)'" > ~($container_user)/.config/chezmoi/chezmoi.jsonc ';'
+		chown -R dev:users ~($container_user) ';'
+		# TODO: Set the umask before running chezmoi
+		su --login --command "'sh -c \'umask\''" $container_user ';'
+		su --login --command "'/usr/local/bin/chezmoi apply --verbose --no-tty --no-pager'" $container_user ';'
+	] | str join ' ')
+
+	log info $"========================================\n"
+	log info $"[build-image] Creating ($container_user) user. cmd: ($cmd)"
+	^buildah run $config.buildah.container -- /bin/sh -c $'($cmd)'
+	^buildah config --user $container_user $config.buildah.container
+	$config
+}
+
+
 # Install user scripts
 def install-user-scripts []: any -> any {
 	let config = $in
@@ -110,13 +154,19 @@ def install-user-scripts []: any -> any {
 		} else {
 			print 'Failed to download rustup'
 		}
-
-		# Run chezmoi one more time to see if the changes remain
-		^chezmoi apply --force --no-tty --no-pager
-
-		# Use this for debugging purposes.
-		# '$env.PATH'
 	"
+
+	# These debugging statements can be added inside the cmd.
+	# print '========== Chezmoi status =========='
+	# print \(^chezmoi status --force --no-tty --no-pager\)
+	# print $'========== ls -la \($env.HOME\) =========='
+	# print \(ls -la $env.HOME\)
+	# print '========== /proc/self/mountinfo =========='
+	# print \(open --raw /proc/self/mountinfo\)
+	# print '========== ls -la / =========='
+	# print \(ls -la /\)
+	# print '========== $env / =========='
+	# print \($env\)
 
 	log info $"========================================\n"
 	log info $"[install-user-scripts] Installing Rustup for `($container_user)`"
@@ -126,46 +176,6 @@ def install-user-scripts []: any -> any {
 	$config
 }
 
-
-# Add the user to the container
-def add-user []: any -> any {
-	let config = $in
-	use std log
-
-	# Add the "dev" user and configure their environment
-	const container_user = 'dev'
-	let sudoer_text = $"'# User rules for ($container_user)\\n($container_user) ALL=\(ALL) NOPASSWD:ALL\\n'"
-	let chezmoi_text = (
-		{
-			"sourceDir": $"/home/($container_user)/projects/dotfiles",
-			"data": {
-				"git": {
-					"email": "me@example.com",
-					"name": "my name"
-				}
-			}
-		} | to json --raw
-	)
-
-	# Using nu as a shell prevents JetBrains and VSCode from connecting to the container (using SSH).
-	const login_shell = '/usr/bin/bash'
-	let cmd = ([
-		echo "/usr/local/bin/nu" >/etc/shells ';'
-		useradd --groups 'users,docker' --shell $login_shell --create-home $container_user ';'
-		echo -e $sudoer_text > $"/etc/sudoers.d/50-($container_user)-user" ';'
-		mkdir -p ~($container_user)/projects ~($container_user)/.config/chezmoi ~($container_user)/.bun ';'
-		git clone --depth 1 $config.dotfiles.repo ~($container_user)/projects/dotfiles ';'
-		echo $"'($chezmoi_text)'" > ~($container_user)/.config/chezmoi/chezmoi.jsonc ';'
-		chown -R dev:users ~($container_user) ';'
-		su --login --command "'/usr/local/bin/chezmoi apply'" $container_user
-	] | str join ' ')
-
-	log info $"========================================\n"
-	log info $"[build-image] Creating ($container_user) user. cmd: ($cmd)"
-	^buildah run $config.buildah.container -- /bin/sh -c $'($cmd)'
-	^buildah config --user $container_user $config.buildah.container
-	$config
-}
 
 # Publish the image to the Docker registry.
 def publish-image []: any -> any {
