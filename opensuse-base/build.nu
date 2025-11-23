@@ -111,6 +111,9 @@ def install-user-scripts []: any -> any {
 			print 'Failed to download rustup'
 		}
 
+		# Run chezmoi one more time to see if the changes remain
+		^chezmoi apply --force --no-tty --no-pager
+
 		# Use this for debugging purposes.
 		# '$env.PATH'
 	"
@@ -161,7 +164,6 @@ def add-user []: any -> any {
 	log info $"[build-image] Creating ($container_user) user. cmd: ($cmd)"
 	^buildah run $config.buildah.container -- /bin/sh -c $'($cmd)'
 	^buildah config --user $container_user $config.buildah.container
-	# ^buildah config --shell '/bin/sh -c' $config.buildah.container
 	$config
 }
 
