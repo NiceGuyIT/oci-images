@@ -5,13 +5,14 @@ opensuse:
   # Docker URL and version
   name: leap
   url: "docker.io/opensuse/leap"
-  version: "15.6"
+  # version: "15.6"
+  version: "16.0"
 
 published:
   # Published image name and version
   name: "opensuse-base"
   # The openSUSE name and version is appended: v0.1.1-leap-15.6
-  version: "v0.3.5"
+  version: "v0.4.0"
 
 packages:
   list:
@@ -24,6 +25,7 @@ packages:
     - tar
     - gzip
     - bzip2
+    - unzip
     - zstd
     - which
     # Required for Forgejo actions
@@ -55,6 +57,9 @@ binaries:
       version: "v2.54.0"
     - name: doggo
       version: "v0.5.7"
+    # Dioxus
+    - name: dx
+      version: "v0.7.1"
     - name: fd
       version: "8.7.1"
     - name: gh

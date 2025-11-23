@@ -29,9 +29,9 @@ def install-packages []: any -> any {
 	# Quotes are needed to prevent Nushell from interpreting the semicolon as the end of the list.
 	let cmd = ([
 		zypper --non-interactive --gpg-auto-import-keys refresh ';'
-		#zypper --non-interactive update ';'
+		zypper --non-interactive update ';'
 		zypper --non-interactive install ($config.packages.list | str join ' ') ';'
-		#zypper --non-interactive clean --all ';'
+		zypper --non-interactive clean --all ';'
 	] | str join ' ')
 
 	log info $"========================================\n"
@@ -131,6 +131,7 @@ def install-user-scripts []: any -> any {
 	const container_user = 'dev'
 	const container_shell = '/usr/local/bin/nu'
 	const rustup = '/tmp/rustup.sh'
+	const rustup_url = 'https://sh.rustup.rs'
 
 	# Execute the scripts as the user.
 	# Note: Escapes are allowed in double quotes but not single quotes or backticks.
@@ -145,7 +146,7 @@ def install-user-scripts []: any -> any {
 		if \(which claude-code | length\) == 0 {^bun install --global @anthropic-ai/claude-code}
 
 		# Rustup
-		http get https://sh.rustup.rs | save ($rustup)
+		http get ($rustup_url) | save ($rustup)
 		if \('($rustup)' | path exists\) {
 			print 'Downloaded rustup. Installing rustup...'
 			chmod a+x ($rustup)
