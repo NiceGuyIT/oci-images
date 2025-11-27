@@ -7,9 +7,9 @@ def load-config []: [nothing -> any, string -> any] {
 	try {
 		mut config = ($in | default "config.yml" | open)
 		$config.published.base.version = ([
-			$config.published.version
-			$config.opensuse.name
-			$config.opensuse.version
+			$config.published.version   # v0.5.0
+			$config.opensuse.name       # leap
+			$config.opensuse.version    # 16.0
 		] | str join '-')
 		$config.published.dev.version = ([
 			$config.published.version
@@ -25,6 +25,7 @@ def load-config []: [nothing -> any, string -> any] {
 		exit 1
 	}
 }
+
 
 # Install system packages
 def install-packages [
@@ -48,6 +49,7 @@ def install-packages [
 	^buildah run $config.buildah.container -- /bin/sh -c $'($cmd)'
 	$config
 }
+
 
 # Install single-file binaries
 def install-binaries []: any -> any {
@@ -204,7 +206,7 @@ def publish-image [
 
 	# Publish the container as an image in buildah.
 	let published_name = ($config.published | get $name | get name)
-	let published_version = $config.published.version
+	let published_version = ($config.published | get $name | get version)
 	let image_name = ([
 		($config.published | get $name | get name)
 		$config.published.version

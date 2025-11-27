@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-base:
-    name: Build openSUSE base base image
+    name: Build openSUSE base image
     uses: ./.github/workflows/build-and-push-image.yml
     permissions:
       contents: read
