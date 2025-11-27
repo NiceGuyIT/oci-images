@@ -206,10 +206,10 @@ def publish-image [
 
 	# Publish the container as an image in buildah.
 	let published_name = ($config.published | get $name | get name)
-	let published_version = ($config.published | get $name | get version)
+	let published_version = $config.published.version
 	let image_name = ([
 		($config.published | get $name | get name)
-		$config.published.version
+		($config.published | get $name | get version)
 	]| str join ':')
 	let docker_image_name = (['docker-daemon', $image_name] | str join ':')
 
