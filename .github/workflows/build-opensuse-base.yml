@@ -8,6 +8,7 @@ on:
       - "opensuse-base/**"
       - ".github/workflows/build-opensuse-base.yml"
 
+
 jobs:
   build-base:
     name: Build openSUSE base image
