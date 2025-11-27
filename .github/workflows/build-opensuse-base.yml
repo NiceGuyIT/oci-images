@@ -1,5 +1,5 @@
 ---
-# Build openSUSE base image and push to GHCR.
+# Build openSUSE images and push to GHCR.
 name: Build openSUSE container
 
 on:
@@ -9,58 +9,22 @@ on:
       - ".github/workflows/build-opensuse-base.yml"
 
 jobs:
-  build:
-    name: Build openSUSE image
-    runs-on: ubuntu-24.04
+  build-base:
+    name: Build openSUSE base base image
+    uses: ./.github/workflows/build-and-push-image.yml
     permissions:
       contents: read
       packages: write
-    env:
-      # Image registry and registry user are set in the steps below.
-      IMAGE_REGISTRY: ""
-      REGISTRY_PROVIDER: ghcr.io
-      REGISTRY_USER: ""
-      REGISTRY_PASSWORD: ${{ github.token }}
+    with:
+      image-name: opensuse-base
+      image-type: base
 
-    steps:
-      - name: Clone the repository
-        uses: actions/checkout@v3
-
-      # Use Nushell for all scripts.
-      - uses: hustcer/setup-nu@v3
-        with:
-          # Don't use 0.90 here, as it would be a float number and would be converted to 0.9
-          # you can use v0.90/0.90.0 or '0.90'
-          version: "0.101.0"
-
-      # The repository owner needs to be lowercase.
-      - name: Set environment variables
-        shell: nu {0}
-        run: |
-          let owner = ($env.GITHUB_REPOSITORY_OWNER | str downcase)
-          $"REGISTRY_USER=($owner)\n" | save --append $env.GITHUB_ENV
-          $"IMAGE_REGISTRY=($env.REGISTRY_PROVIDER)/($owner)\n" | save --append $env.GITHUB_ENV
-
-      ################################################################################
-      # Base image
-      ################################################################################
-      - name: Build openSUSE base image
-        id: build-image
-        shell: nu {0}
-        run: |
-          cd opensuse-base
-          ./build.nu
-
-      # Example to push to GHCR: https://github.com/redhat-actions/push-to-registry/blob/main/.github/workflows/ghcr-push.yaml
-      - name: Push image to GitHub Container Repository
-        id: push-to-ghcr
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ env.REGISTRY_USER }}
-          password: ${{ env.REGISTRY_PASSWORD }}
-          image: ${{ steps.build-image.outputs.image }}
-          tags: ${{ steps.build-image.outputs.tags }}
-
-      - name: Print image URL
-        run: echo "Production image pushed to ${{ steps.push-to-ghcr.outputs.registry-paths }}"
+  build-dev:
+    name: Build openSUSE dev image
+    uses: ./.github/workflows/build-and-push-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: opensuse-base
+      image-type: dev

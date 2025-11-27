@@ -253,18 +253,21 @@ def build-image [
 }
 
 # Main script
-def main [] {
-	use std log
-
+def main [
+	name					# Image name
+] {
 	# Check if the environment is suitable for Buildah. This execs the calling script in the user namespace
 	# using "buildah unshare build.nu"
 	use ../buildah-wrapper.nu *
 	check-environment
 
+	if not ($name in [base dev]) {
+		use std log
+		log error $"Invalid image name: ($name). Valid names are: 'base', 'dev'"
+	}
+
 	# Order matters! The container ID set in build-image and used throughout the other functions.
 	load-config
-	| build-image base
-	| publish-image base
-	| build-image dev
-	| publish-image dev
+	| build-image $name
+	| publish-image $name
 }

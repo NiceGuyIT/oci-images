@@ -1,0 +1,76 @@
+---
+# Reusable workflow for building and pushing openSUSE images.
+name: Build and push image
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: 'Name of image (directory) to build'
+        required: true
+        type: string
+      image-type:
+        description: 'Type of image to build (base or dev)'
+        required: false
+        default: base
+        type: string
+    outputs:
+      registry-paths:
+        description: 'Registry paths where the image was pushed'
+        value: ${{ jobs.build-and-push.outputs.registry-paths }}
+
+jobs:
+  build-and-push:
+    name: Build and push ${{ inputs.image-name }} image of type ${{ inputs.image-type }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # Image registry and registry user are set in the steps below.
+      IMAGE_REGISTRY: ""
+      REGISTRY_PROVIDER: ghcr.io
+      REGISTRY_USER: ""
+      REGISTRY_PASSWORD: ${{ github.token }}
+    outputs:
+      registry-paths: ${{ steps.push-to-ghcr.outputs.registry-paths }}
+
+    steps:
+      - name: Clone the repository
+        uses: actions/checkout@v3
+
+      # Use Nushell for all scripts.
+      - uses: hustcer/setup-nu@v3
+        with:
+          # Don't use 0.90 here, as it would be a float number and would be converted to 0.9
+          # you can use v0.90/0.90.0 or '0.90'
+          version: "0.101.0"
+
+      # The repository owner needs to be lowercase.
+      - name: Set environment variables
+        shell: nu {0}
+        run: |
+          let owner = ($env.GITHUB_REPOSITORY_OWNER | str downcase)
+          $"REGISTRY_USER=($owner)\n" | save --append $env.GITHUB_ENV
+          $"IMAGE_REGISTRY=($env.REGISTRY_PROVIDER)/($owner)\n" | save --append $env.GITHUB_ENV
+
+      - name: Build ${{ inputs.image-name }} image of type ${{ inputs.image-type }}
+        id: build-image
+        shell: nu {0}
+        run: |
+          cd ${{ inputs.image-name }}
+          ./build.nu ${{ inputs.image-type }}
+
+      # Example to push to GHCR: https://github.com/redhat-actions/push-to-registry/blob/main/.github/workflows/ghcr-push.yaml
+      - name: Push image to GitHub Container Repository
+        id: push-to-ghcr
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ env.REGISTRY_USER }}
+          password: ${{ env.REGISTRY_PASSWORD }}
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+
+      - name: Print image URL
+        run: echo "Production image pushed to ${{ steps.push-to-ghcr.outputs.registry-paths }}"
