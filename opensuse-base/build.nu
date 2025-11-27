@@ -206,7 +206,7 @@ def publish-image [
 
 	# Publish the container as an image in buildah.
 	let published_name = ($config.published | get $name | get name)
-	let published_version = $config.published.version
+	let published_version = ($config.published | get $name | get version)
 	let image_name = ([
 		($config.published | get $name | get name)
 		($config.published | get $name | get version)
