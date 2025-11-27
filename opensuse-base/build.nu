@@ -256,15 +256,17 @@ def build-image [
 def main [
 	name					# Image name
 ] {
-	# Check if the environment is suitable for Buildah. This execs the calling script in the user namespace
-	# using "buildah unshare build.nu"
-	use ../buildah-wrapper.nu *
-	check-environment
-
 	if not ($name in [base dev]) {
 		use std log
 		log error $"Invalid image name: ($name). Valid names are: 'base', 'dev'"
 	}
+
+	# Check if the environment is suitable for Buildah. This execs the calling script in the user namespace
+	# using "buildah unshare build.nu"
+	# Use environment variable to pass the args
+	$env.BUILD_ARGS = $name
+	use ../buildah-wrapper.nu *
+	check-environment
 
 	# Order matters! The container ID set in build-image and used throughout the other functions.
 	load-config

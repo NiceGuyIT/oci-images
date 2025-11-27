@@ -1,6 +1,5 @@
 #!/usr/bin/env nu
 
-
 # Are we running in the root namespace?
 def is-root-namespace []: nothing -> bool {
 	let namespace = (
@@ -93,11 +92,15 @@ export def check-environment []: nothing -> nothing {
 		log info "Detected container. Using chroot isolation."
 		$env.BUILDAH_ISOLATION = "chroot"
 	} else if ($is_root_namespace) {
+		if not ('BUILD_ARGS' in $env) {
+			log error $"Build arguments ('BUILD_ARGS') not set."
+			exit 1
+		}
 		# unshare cannot be run in certain environments.
 		# https://github.com/containers/buildah/issues/1901
 		# Dockers/containerd blocks unshare and mount. Podman, Buildah, CRI-O do not.
 		log info "Detected root namespace and not in container. Rerunning in a 'buildah unshare' environment."
-		^buildah unshare ./build.nu
+		^buildah unshare ./build.nu $env.BUILD_ARGS
 		exit 0
 	}
 }
