@@ -2,11 +2,11 @@
 // For config options, see the README at: https://github.com/devcontainers/templates/tree/main/src/universal
 {
 	// A name for the dev container displayed in the UI.
-	"name": "openSUSE Leap 15.6",
+	"name": "openSUSE Leap 16.0",
 	// Use a Dockerfile or Docker Compose file: https://containers.dev/guide/dockerfile
 	// Use an image: https://github.com/devcontainers/images/blob/main/src/base-debian/history/1.0.9.md
 	// Custom image based on openSUSE Leap 15.6: https://github.com/niceguyit/oci-images/pkgs/container/opensuse-base
-    "image": "ghcr.io/niceguyit/opensuse-base:v0.3.3-leap-15.6",
+	"image": "ghcr.io/niceguyit/opensuse-dev:v0.5.0-leap-15.6",
 	// Use 'postCreateCommand' to run commands after the container is created.
 	"postCreateCommand": {
 		// FIXME: It seems JetBrains does not run postCreateCommand as the user.
@@ -17,14 +17,14 @@
 			"--command",
 			"${containerWorkspaceFolder}/.devcontainer/config-devcontainer.sh",
 			"dev"
-		],
+		]
 	},
 	// Configure tool-specific properties.
 	"customizations": {
 		"jetbrains": {
 			"settings": {
 				"com.intellij:app:EditorSettings.soft_wrap_file_masks": "*.md; *.txt; *.rst; *.adoc",
-				"org.jetbrains.plugins.terminal:app:TerminalOptionsProvider.myHighlightHyperlinks": false,
+				"org.jetbrains.plugins.terminal:app:TerminalOptionsProvider.myHighlightHyperlinks": false
 			},
 			"plugins": [
 				"com.jetbrains.sh",

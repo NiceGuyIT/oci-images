@@ -1,10 +1,17 @@
 #!/usr/bin/env nu
 
+# Using openSUSE Leap as the base, build.nu creates two images: base and dev. The base image is
+
 # Load the configuration
 def load-config []: [nothing -> any, string -> any] {
 	try {
 		mut config = ($in | default "config.yml" | open)
-		$config.published.version = ([
+		$config.published.base.version = ([
+			$config.published.version
+			$config.opensuse.name
+			$config.opensuse.version
+		] | str join '-')
+		$config.published.dev.version = ([
 			$config.published.version
 			$config.opensuse.name
 			$config.opensuse.version
@@ -20,7 +27,9 @@ def load-config []: [nothing -> any, string -> any] {
 }
 
 # Install system packages
-def install-packages []: any -> any {
+def install-packages [
+	name					# Image name
+]: any -> any {
 	use std log
 	let config = $in
 
@@ -30,7 +39,7 @@ def install-packages []: any -> any {
 	let cmd = ([
 		zypper --non-interactive --gpg-auto-import-keys refresh ';'
 		zypper --non-interactive update ';'
-		zypper --non-interactive install ($config.packages.list | str join ' ') ';'
+		zypper --non-interactive install ($config.packages | get $name | str join ' ') ';'
 		zypper --non-interactive clean --all ';'
 	] | str join ' ')
 
@@ -110,7 +119,7 @@ def add-user []: any -> any {
 		echo $"'($chezmoi_text)'" > ~($container_user)/.config/chezmoi/chezmoi.jsonc ';'
 		chown -R dev:users ~($container_user) ';'
 		# TODO: Set the umask before running chezmoi
-		su --login --command "'sh -c \'umask\''" $container_user ';'
+		#su --login --command "'sh -c \'umask\''" $container_user ';'
 		su --login --command "'/usr/local/bin/chezmoi apply --no-tty --no-pager'" $container_user ';'
 	] | str join ' ')
 
@@ -123,7 +132,9 @@ def add-user []: any -> any {
 
 
 # Install user scripts
-def install-user-scripts []: any -> any {
+def install-user-scripts [
+	name					# Image name
+]: any -> any {
 	let config = $in
 	use std log
 
@@ -133,6 +144,15 @@ def install-user-scripts []: any -> any {
 	const rustup = '/tmp/rustup.sh'
 	const rustup_url = 'https://sh.rustup.rs'
 
+	let bun = (
+		$config.bun
+		| get $name
+		| each {|it|
+			$"^bun install --global ($it)"
+		}
+		| to text
+	)
+
 	# Execute the scripts as the user.
 	# Note: Escapes are allowed in double quotes but not single quotes or backticks.
 	let cmd = $"
@@ -140,10 +160,7 @@ def install-user-scripts []: any -> any {
 		nvm-install.nu
 
 		# Prettier and Cspell
-		if \(which prettier | length\) == 0 {^bun install --global prettier}
-		if \(which cspell | length\) == 0 {^bun install --global cspell}
-		if \(which corepack | length\) == 0 {^bun install --global corepack}
-		if \(which claude-code | length\) == 0 {^bun install --global @anthropic-ai/claude-code}
+		($bun)
 
 		# Rustup
 		http get ($rustup_url) | save ($rustup)
@@ -179,14 +196,19 @@ def install-user-scripts []: any -> any {
 
 
 # Publish the image to the Docker registry.
-def publish-image []: any -> any {
+def publish-image [
+	name					# Image name
+]: any -> any {
 	use std log
 	let config = $in
 
 	# Publish the container as an image in buildah.
-	let published_name = $config.published.name
+	let published_name = ($config.published | get $name | get name)
 	let published_version = $config.published.version
-	let image_name = ([$config.published.name, $config.published.version] | str join ':')
+	let image_name = ([
+		($config.published | get $name | get name)
+		$config.published.version
+	]| str join ':')
 	let docker_image_name = (['docker-daemon', $image_name] | str join ':')
 
 	let image = (^buildah commit --format docker $config.buildah.container $image_name)
@@ -209,7 +231,9 @@ def publish-image []: any -> any {
 }
 
 # Build the image
-def build-image []: any -> any {
+def build-image [
+	name					# Image name
+]: any -> any {
 	use std log
 	mut config = $in
 
@@ -222,10 +246,10 @@ def build-image []: any -> any {
 
 	# Install the packages
 	$config
-	| install-packages
+	| install-packages $name
 	| install-binaries
 	| add-user
-	| install-user-scripts
+	| install-user-scripts $name
 }
 
 # Main script
@@ -237,7 +261,10 @@ def main [] {
 	use ../buildah-wrapper.nu *
 	check-environment
 
+	# Order matters! The container ID set in build-image and used throughout the other functions.
 	load-config
-	| build-image
-	| publish-image
+	| build-image base
+	| publish-image base
+	| build-image dev
+	| publish-image dev
 }

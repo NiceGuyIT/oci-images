@@ -9,13 +9,18 @@ opensuse:
   version: "16.0"
 
 published:
-  # Published image name and version
-  name: "opensuse-base"
   # The openSUSE name and version is appended: v0.1.1-leap-15.6
-  version: "v0.4.0"
+  version: "v0.5.0"
+  base:
+    # Published image name and version
+    name: "opensuse-base"
+  dev:
+    # Published image name and version
+    name: "opensuse-dev"
 
 packages:
-  list:
+  # TODO: Dynamically add the base list to the dev list.
+  base:
     # The user inside the container is "dev"
     - sudo
     # Basic utils
@@ -31,18 +36,70 @@ packages:
     # Required for Forgejo actions
     - nodejs-common
     - openssh-clients
-    # Needed for remote development with JetBrains
-    - java-21-openjdk-devel
     # Container tools
     - buildah
     - docker
     - docker-compose
     - docker-buildx
     - fuse-overlayfs
+  dev:
+    # The user inside the container is "dev"
+    - sudo
+    # Basic utils
+    - vim
+    - vim-data
+    - git
+    - tar
+    - gzip
+    - bzip2
+    - unzip
+    - zstd
+    - which
+    # Required for Forgejo actions
+    - nodejs-common
+    - openssh-clients
+    # Container tools
+    - buildah
+    - docker
+    - docker-compose
+    - docker-buildx
+    - fuse-overlayfs
+    # Needed for remote development with JetBrains
+    - java-21-openjdk-devel
     # Development
     - clang
     - libopenssl-devel
     - gcc
+    # pattern: devel_basis
+    - bison
+    - flex
+    - gdbm-devel
+    - libfl-devel
+    - libfl2
+    - libtool
+    - makeinfo
+    - patch
+    - patterns-devel-base-devel_basis
+    - perl-Text-Unidecode
+    # Dioxus
+    - webkit2gtk3-devel
+    - libopenssl-devel
+    - libappindicator3-1
+    - librsvg-devel
+
+bun:
+  # TODO: Dynamically add the base list to the dev list.
+  base:
+    - prettier
+    - cspell
+    # Needed for yarn
+    - corepack
+  dev:
+    - prettier
+    - cspell
+    # Needed for yarn
+    - corepack
+    - '@anthropic-ai/claude-code'
 
 binaries:
   host: dufs.niceguyit.biz
