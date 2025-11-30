@@ -165,7 +165,7 @@ def install-user-scripts [
 		# Install global NPM packages using bun
 		($bun)
 		# List all packages installed to verify
-		bun pn ls --global
+		bun pm ls --global
 
 		# Rustup
 		http get ($rustup_url) | save ($rustup)
