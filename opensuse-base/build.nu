@@ -146,6 +146,7 @@ def install-user-scripts [
 	const rustup = '/tmp/rustup.sh'
 	const rustup_url = 'https://sh.rustup.rs'
 
+	# TODO: Verify this works.
 	let bun = (
 		$config.bun
 		| get $name
@@ -161,8 +162,10 @@ def install-user-scripts [
 		# nvm and node
 		nvm-install.nu
 
-		# Prettier and Cspell
+		# Install global NPM packages using bun
 		($bun)
+		# List all packages installed to verify
+		bun pn ls --global
 
 		# Rustup
 		http get ($rustup_url) | save ($rustup)

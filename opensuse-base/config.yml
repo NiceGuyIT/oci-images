@@ -10,7 +10,7 @@ opensuse:
 
 published:
   # The openSUSE name and version is appended: v0.1.1-leap-15.6
-  version: "v0.5.0"
+  version: "v0.6.0"
   base:
     # Published image name and version
     name: "opensuse-base"
@@ -66,6 +66,8 @@ packages:
     - fuse-overlayfs
     # Needed for remote development with JetBrains
     - java-21-openjdk-devel
+    # PostgreSQL is preferred db for development
+    - postgresql17
     # Development
     - clang
     - libopenssl-devel
@@ -100,6 +102,7 @@ bun:
     # Needed for yarn
     - corepack
     - '@anthropic-ai/claude-code'
+    - '@tailwindcss/cli'
 
 binaries:
   host: dufs.niceguyit.biz
