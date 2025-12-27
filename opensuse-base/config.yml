@@ -5,12 +5,11 @@ opensuse:
   # Docker URL and version
   name: leap
   url: "docker.io/opensuse/leap"
-  # version: "15.6"
   version: "16.0"
 
 published:
-  # The openSUSE name and version is appended: v0.1.1-leap-15.6
-  version: "v0.6.0"
+  # The openSUSE name and version are appended: v0.1.1-leap-15.6
+  version: "v0.6.1"
   base:
     # Published image name and version
     name: "opensuse-base"

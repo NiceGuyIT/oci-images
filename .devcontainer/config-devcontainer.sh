@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# The latest version of this script is in the OCI Images repo:
+# https://github.com/NiceGuyIT/oci-images/blob/main/.devcontainer/config-devcontainer.sh
+
 # FIXME: It seems JetBrains does not run postCreateCommand as the user.
 # https://containers.dev/implementors/json_reference/
 # This is run as root.
@@ -7,6 +10,7 @@
 # Add the user to the host's docker group
 sudoIf() { if [ "$(id -u)" -ne 0 ]; then sudo "$@"; else "$@"; fi }
 NONROOT_USER=dev
+NONROOT_GROUP=dev
 SOCKET_GID=$(stat -c '%g' /var/run/docker.sock)
 if [ "${SOCKET_GID}" != '0' ]; then
   if [ "$(grep :${SOCKET_GID}: /etc/group)" = '' ]; then
@@ -24,28 +28,93 @@ fi
 #   XDG_CACHE_HOME
 #   XDG_CONFIG_HOME
 #   XDG_DATA_HOME
+echo "Starting Devcontainer script"
 if [[ -d /.jbdevcontainer/ ]]
 then
 
   # Chezmoi uses $XDG_CONFIG_HOME for the config directory and $XDG_DATA_HOME for the data directory.
-  if [[ -d /.jbdevcontainer/config/ ]] && [[ ! -e /.jbdevcontainer/config/chezmoi ]]
+  # If the persistent config doesn't exist, copy the container's config to it.
+  program=chezmoi
+  if [[ -d /.jbdevcontainer/config/ ]]
   then
-    ln -s ~/.config/chezmoi /.jbdevcontainer/config/
-  fi
-  if [[ -d /.jbdevcontainer/data/ ]] && [[ ! -e /.jbdevcontainer/data/chezmoi ]]
-  then
-    ln -s ~/.config/chezmoi /.jbdevcontainer/data/
+    if [[ ! -e /.jbdevcontainer/config/${program} ]]
+    then
+      echo "Moving '/home/${NONROOT_USER}/.config/${program}' to '/.jbdevcontainer/config/'"
+      sudoIf mv /home/${NONROOT_USER}/.config/${program} /.jbdevcontainer/config/
+      sudoIf chown --recursive ${NONROOT_USER}:${NONROOT_GROUP} /.jbdevcontainer/config/${program}
+    fi
+
+    # The jbdevcontainer image exists but a new container image may not have the symlink in the home directory.
+    # Remove the directory so the symlink below works.
+    [[ -e /home/${NONROOT_USER}/.config/${program} ]] && rm -r /home/${NONROOT_USER}/.config/${program}
+    [[ -L /home/${NONROOT_USER}/.config/${program} ]] && rm /home/${NONROOT_USER}/.config/${program}
+
+    # Symlink the container's config to the persistent config.
+    ln -s /.jbdevcontainer/config/${program} /home/${NONROOT_USER}/.config/${program}
+    chown --no-dereference ${NONROOT_USER}:${NONROOT_GROUP} /home/${NONROOT_USER}/.config/${program}
   fi
 
   # Nushell uses $XDG_CONFIG_HOME for the config directory.
-  if [[ -d /.jbdevcontainer/config/ ]] && [[ ! -e /.jbdevcontainer/config/nushell ]]
+  program=nushell
+  if [[ -d /.jbdevcontainer/config/ ]]
   then
-    ln -s ~/.config/nushell /.jbdevcontainer/config/
+    if [[ ! -e /.jbdevcontainer/config/${program} ]]
+    then
+      echo "Moving '/home/${NONROOT_USER}/.config/${program}' to '/.jbdevcontainer/config/'"
+      sudoIf mv /home/${NONROOT_USER}/.config/${program} /.jbdevcontainer/config/
+      sudoIf chown --recursive ${NONROOT_USER}:${NONROOT_GROUP} /.jbdevcontainer/config/${program}
+    fi
+
+    # The jbdevcontainer image exists but a new container image may not have the symlink in the home directory.
+    # Remove the directory so the symlink below works.
+    [[ -e /home/${NONROOT_USER}/.config/${program} ]] && rm -r /home/${NONROOT_USER}/.config/${program}
+    [[ -L /home/${NONROOT_USER}/.config/${program} ]] && rm /home/${NONROOT_USER}/.config/${program}
+
+    # Symlink the container's config to the persistent config.
+    ln -s /.jbdevcontainer/config/${program} /home/${NONROOT_USER}/.config/${program}
+    chown --no-dereference ${NONROOT_USER}:${NONROOT_GROUP} /home/${NONROOT_USER}/.config/${program}
   fi
 
   # Bun uses $XDG_CONFIG_HOME the .bun directory.
-  if [[ ! -e /.jbdevcontainer/config/chezmoi ]]
+  program=bun
+  if [[ -d /.jbdevcontainer/config/ ]]
   then
-    ln -s ~/.bun /.jbdevcontainer/.bun/
+    if [[ ! -e /.jbdevcontainer/config/${program} ]] && [[ -d /home/${NONROOT_USER}/.${program} ]]
+    then
+      echo "Moving '/home/${NONROOT_USER}/.${program}' to '/.jbdevcontainer/config/'"
+      sudoIf mv /home/${NONROOT_USER}/.${program} /.jbdevcontainer/config/${program}
+      sudoIf chown --recursive ${NONROOT_USER}:${NONROOT_GROUP} /.jbdevcontainer/config/${program}
+    fi
+
+    # The jbdevcontainer image exists but a new container image may not have the symlink in the home directory.
+    # Remove the directory so the symlink below works.
+    [[ -e /home/${NONROOT_USER}/.${program} ]] && rm -r /home/${NONROOT_USER}/.${program}
+    [[ -L /home/${NONROOT_USER}/.${program} ]] && rm /home/${NONROOT_USER}/.${program}
+
+    # Symlink the container's config to the persistent config.
+    ln -s /.jbdevcontainer/config/${program} /home/${NONROOT_USER}/.${program}
+    chown --no-dereference ${NONROOT_USER}:${NONROOT_GROUP} /home/${NONROOT_USER}/.${program}
   fi
+
+  # Move Claude data to JetBrains container
+  program=claude
+  if [[ -d /.jbdevcontainer/config/ ]]
+  then
+    if [[ ! -e /.jbdevcontainer/config/${program} ]] && [[ -d /home/${NONROOT_USER}/.${program} ]]
+    then
+      echo "Moving '/home/${NONROOT_USER}/.${program}' to '/.jbdevcontainer/config/'"
+      sudoIf mv /home/${NONROOT_USER}/.${program} /.jbdevcontainer/config/${program}
+      sudoIf chown --recursive ${NONROOT_USER}:${NONROOT_GROUP} /.jbdevcontainer/config/${program}
+    fi
+
+    # The jbdevcontainer image exists but a new container image may not have the symlink in the home directory.
+    # Remove the directory so the symlink below works.
+    [[ -e /home/${NONROOT_USER}/.${program} ]] && rm -r /home/${NONROOT_USER}/.${program}
+    [[ -L /home/${NONROOT_USER}/.${program} ]] && rm /home/${NONROOT_USER}/.${program}
+
+    # Symlink the container's config to the persistent config.
+    ln -s /.jbdevcontainer/config/${program} /home/${NONROOT_USER}/.${program}
+    chown --no-dereference ${NONROOT_USER}:${NONROOT_GROUP} /home/${NONROOT_USER}/.${program}
+  fi
+
 fi
