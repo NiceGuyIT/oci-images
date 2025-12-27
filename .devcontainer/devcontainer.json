@@ -75,10 +75,15 @@
   // Docker-from-docker uses the host's docker socket to gain access to Docker.
   // https://github.com/microsoft/vscode-dev-containers/tree/main/containers/docker-from-docker
   "runArgs": [
-    "--init"
+    "--init",
+    // Allow the devcontainer access to host resources for Postgres.
+    "--add-host=host.docker.internal:host-gateway",
   ],
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+    // While the bind mount works, the logic doesn't. The bind mount masks the Nushell config in the openSUSE image
+    // and prevents the symlink form /.jbdevcontainer/config from working.
+    //"source=${localWorkspaceFolder}/.devcontainer/config,target=/home/dev/.config,type=bind"
   ]
   // Docker-in-Docker runs Docker inside the container without connecting to the host.
   // https://github.com/microsoft/vscode-dev-containers/tree/main/containers/docker-in-docker

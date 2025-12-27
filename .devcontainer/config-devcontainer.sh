@@ -28,7 +28,6 @@ fi
 #   XDG_CACHE_HOME
 #   XDG_CONFIG_HOME
 #   XDG_DATA_HOME
-echo "Starting Devcontainer script"
 if [[ -d /.jbdevcontainer/ ]]
 then
 
@@ -116,5 +115,19 @@ then
     ln -s /.jbdevcontainer/config/${program} /home/${NONROOT_USER}/.${program}
     chown --no-dereference ${NONROOT_USER}:${NONROOT_GROUP} /home/${NONROOT_USER}/.${program}
   fi
+fi
+
+if $(which bun)
+then
+
+  # Install packages for development
+  /usr/local/bin/bun install --global prettier
+  /usr/local/bin/bun install --global cspell
+  /usr/local/bin/bun install --global corepack
+  /usr/local/bin/bun install --global '@anthropic-ai/claude-code'
+  /usr/local/bin/bun install --global '@tailwindcss/cli'
+
+  # Update all NPM packages
+  /usr/local/bin/bun update --global --latest
 
 fi
