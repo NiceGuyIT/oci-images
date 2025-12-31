@@ -156,6 +156,16 @@ def install-user-scripts [
 		| to text
 	)
 
+	# TODO: uv tool install
+    let uv = (
+        $config.uv
+        | get $name
+        | each {|it|
+            $"^uv tool install ($it)"
+        }
+        | to text
+    )
+
 	# Execute the scripts as the user.
 	# Note: Escapes are allowed in double quotes but not single quotes or backticks.
 	let cmd = $"
@@ -165,7 +175,11 @@ def install-user-scripts [
 		# Install global NPM packages using bun
 		($bun)
 		# List all packages installed to verify
-		bun pm ls --global
+		^bun pm ls --global
+
+		# Install global Python packages using uv
+		($uv)
+		^uv tool list
 
 		# Rustup
 		http get ($rustup_url) | save ($rustup)

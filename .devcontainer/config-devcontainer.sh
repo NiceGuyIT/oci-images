@@ -83,6 +83,9 @@ then
       echo "Moving '/home/${NONROOT_USER}/.${program}' to '/.jbdevcontainer/config/'"
       sudoIf mv /home/${NONROOT_USER}/.${program} /.jbdevcontainer/config/${program}
       sudoIf chown --recursive ${NONROOT_USER}:${NONROOT_GROUP} /.jbdevcontainer/config/${program}
+    elif [[ ! -e /.jbdevcontainer/config/${program} ]]
+    then
+      sudoIf mkdir --parents /.jbdevcontainer/config/${program}
     fi
 
     # The jbdevcontainer image exists but a new container image may not have the symlink in the home directory.
@@ -104,6 +107,9 @@ then
       echo "Moving '/home/${NONROOT_USER}/.${program}' to '/.jbdevcontainer/config/'"
       sudoIf mv /home/${NONROOT_USER}/.${program} /.jbdevcontainer/config/${program}
       sudoIf chown --recursive ${NONROOT_USER}:${NONROOT_GROUP} /.jbdevcontainer/config/${program}
+    elif [[ ! -e /.jbdevcontainer/config/${program} ]]
+    then
+      sudoIf mkdir --parents /.jbdevcontainer/config/${program}
     fi
 
     # The jbdevcontainer image exists but a new container image may not have the symlink in the home directory.
@@ -117,7 +123,7 @@ then
   fi
 fi
 
-if $(which bun)
+if which bun 2>/dev/null
 then
 
   # Install packages for development
