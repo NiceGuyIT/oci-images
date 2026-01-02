@@ -82,11 +82,11 @@ then
     then
       echo "Moving '/home/${NONROOT_USER}/.${program}' to '/.jbdevcontainer/config/'"
       sudoIf mv /home/${NONROOT_USER}/.${program} /.jbdevcontainer/config/${program}
-      sudoIf chown --recursive ${NONROOT_USER}:${NONROOT_GROUP} /.jbdevcontainer/config/${program}
     elif [[ ! -e /.jbdevcontainer/config/${program} ]]
     then
       sudoIf mkdir --parents /.jbdevcontainer/config/${program}
     fi
+    sudoIf chown --recursive ${NONROOT_USER}:${NONROOT_GROUP} /.jbdevcontainer/config/${program}
 
     # The jbdevcontainer image exists but a new container image may not have the symlink in the home directory.
     # Remove the directory so the symlink below works.
@@ -98,29 +98,6 @@ then
     chown --no-dereference ${NONROOT_USER}:${NONROOT_GROUP} /home/${NONROOT_USER}/.${program}
   fi
 
-  # Move Claude data to JetBrains container
-  program=claude
-  if [[ -d /.jbdevcontainer/config/ ]]
-  then
-    if [[ ! -e /.jbdevcontainer/config/${program} ]] && [[ -d /home/${NONROOT_USER}/.${program} ]]
-    then
-      echo "Moving '/home/${NONROOT_USER}/.${program}' to '/.jbdevcontainer/config/'"
-      sudoIf mv /home/${NONROOT_USER}/.${program} /.jbdevcontainer/config/${program}
-      sudoIf chown --recursive ${NONROOT_USER}:${NONROOT_GROUP} /.jbdevcontainer/config/${program}
-    elif [[ ! -e /.jbdevcontainer/config/${program} ]]
-    then
-      sudoIf mkdir --parents /.jbdevcontainer/config/${program}
-    fi
-
-    # The jbdevcontainer image exists but a new container image may not have the symlink in the home directory.
-    # Remove the directory so the symlink below works.
-    [[ -e /home/${NONROOT_USER}/.${program} ]] && rm -r /home/${NONROOT_USER}/.${program}
-    [[ -L /home/${NONROOT_USER}/.${program} ]] && rm /home/${NONROOT_USER}/.${program}
-
-    # Symlink the container's config to the persistent config.
-    ln -s /.jbdevcontainer/config/${program} /home/${NONROOT_USER}/.${program}
-    chown --no-dereference ${NONROOT_USER}:${NONROOT_GROUP} /home/${NONROOT_USER}/.${program}
-  fi
 fi
 
 if which bun 2>/dev/null
