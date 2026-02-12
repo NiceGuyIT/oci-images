@@ -6,13 +6,40 @@
 def load-config []: [nothing -> any, string -> any] {
 	try {
 		mut config = ($in | default "config.yml" | open)
+		# Full version tag: v0.7.2-leap-16.0
 		$config.published.base.version = ([
-			$config.published.version   # v0.5.0
+			$config.published.version   # v0.7.2
 			$config.opensuse.name       # leap
 			$config.opensuse.version    # 16.0
 		] | str join '-')
 		$config.published.dev.version = ([
 			$config.published.version
+			$config.opensuse.name
+			$config.opensuse.version
+		] | str join '-')
+		# Semver tags for version compatibility
+		let version_parts = ($config.published.version | split row '.')
+		let major_version = ($version_parts | first 1 | str join)
+		let minor_version = ($version_parts | first 2 | str join '.')
+		# Major version tag: v0-leap-16.0
+		$config.published.base.major_version = ([
+			$major_version
+			$config.opensuse.name
+			$config.opensuse.version
+		] | str join '-')
+		$config.published.dev.major_version = ([
+			$major_version
+			$config.opensuse.name
+			$config.opensuse.version
+		] | str join '-')
+		# Minor version tag: v0.7-leap-16.0
+		$config.published.base.minor_version = ([
+			$minor_version
+			$config.opensuse.name
+			$config.opensuse.version
+		] | str join '-')
+		$config.published.dev.minor_version = ([
+			$minor_version
 			$config.opensuse.name
 			$config.opensuse.version
 		] | str join '-')
@@ -166,6 +193,8 @@ def install-user-scripts [
         | to text
     )
 
+	let rust_version = ($config.rust?.version? | default "stable")
+
 	# Execute the scripts as the user.
 	# Note: Escapes are allowed in double quotes but not single quotes or backticks.
 	let cmd = $"
@@ -186,7 +215,7 @@ def install-user-scripts [
 		if \('($rustup)' | path exists\) {
 			print 'Downloaded rustup. Installing rustup...'
 			chmod a+x ($rustup)
-			^($rustup) -y --no-modify-path
+			^($rustup) -y --no-modify-path --default-toolchain ($rust_version)
 			rm ($rustup)
 		} else {
 			print 'Failed to download rustup'
@@ -206,7 +235,7 @@ def install-user-scripts [
 	# print \($env\)
 
 	log info $"========================================\n"
-	log info $"[install-user-scripts] Installing Rustup for `($container_user)`"
+	log info $"[install-user-scripts] Installing Rustup ($rust_version) for `($container_user)`"
 	log info $"[install-user-scripts] cmd: ($cmd)"
 	print ""
 	^buildah run --user $container_user $config.buildah.container -- $container_shell --login --commands $cmd
@@ -224,18 +253,34 @@ def publish-image [
 	# Publish the container as an image in buildah.
 	let published_name = ($config.published | get $name | get name)
 	let published_version = ($config.published | get $name | get version)
+	let published_major_version = ($config.published | get $name | get major_version)
+	let published_minor_version = ($config.published | get $name | get minor_version)
 	let image_name = ([
 		($config.published | get $name | get name)
 		($config.published | get $name | get version)
 	]| str join ':')
+	let image_name_major = ([$published_name $published_major_version] | str join ':')
+	let image_name_minor = ([$published_name $published_minor_version] | str join ':')
 	let docker_image_name = (['docker-daemon', $image_name] | str join ':')
+	let docker_image_name_major = (['docker-daemon', $image_name_major] | str join ':')
+	let docker_image_name_minor = (['docker-daemon', $image_name_minor] | str join ':')
 
 	let image = (^buildah commit --format docker $config.buildah.container $image_name)
 	log info $"[publish-image] Built image '($image_name)'"
 
-	# Publish the image to Docker for use.
+	# Tag with major and minor versions for semver compatibility
+	^buildah tag $image $image_name_major
+	log info $"[publish-image] Tagged image '($image_name_major)'"
+	^buildah tag $image $image_name_minor
+	log info $"[publish-image] Tagged image '($image_name_minor)'"
+
+	# Publish the images to Docker for use.
 	^buildah push $image $docker_image_name
 	log info $"[publish-image] Published image '($docker_image_name)' to Docker"
+	^buildah push $image_name_major $docker_image_name_major
+	log info $"[publish-image] Published image '($docker_image_name_major)' to Docker"
+	^buildah push $image_name_minor $docker_image_name_minor
+	log info $"[publish-image] Published image '($docker_image_name_minor)' to Docker"
 
 	# Output to a log file...
 	mut output = $config.output.log
@@ -244,7 +289,7 @@ def publish-image [
 		$output = $env.GITHUB_OUTPUT
 	}
 	$"image=($published_name)\n" | save --append $output
-	$"tags=($published_version)\n" | save --append $output
+	$"tags=($published_version),($published_minor_version),($published_major_version)\n" | save --append $output
 
 	$config
 }
