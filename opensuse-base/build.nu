@@ -278,7 +278,7 @@ def publish-image [
 		$output = $env.GITHUB_OUTPUT
 	}
 	$"image=($published_name)\n" | save --append $output
-	$"tags=($published_version),($published_minor_version),($published_major_version)\n" | save --append $output
+	$"tags=($published_version) ($published_minor_version) ($published_major_version)\n" | save --append $output
 
 	$config
 }
