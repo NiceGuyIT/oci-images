@@ -243,14 +243,14 @@ def install-user-scripts [
 }
 
 
-# Publish the image to the Docker registry.
+# Publish the image to buildah's local storage for the GitHub Action to push.
 def publish-image [
 	name					# Image name
 ]: any -> any {
 	use std log
 	let config = $in
 
-	# Publish the container as an image in buildah.
+	# Commit the container as an image in buildah's local storage.
 	let published_name = ($config.published | get $name | get name)
 	let published_version = ($config.published | get $name | get version)
 	let published_major_version = ($config.published | get $name | get major_version)
@@ -261,9 +261,6 @@ def publish-image [
 	]| str join ':')
 	let image_name_major = ([$published_name $published_major_version] | str join ':')
 	let image_name_minor = ([$published_name $published_minor_version] | str join ':')
-	let docker_image_name = (['docker-daemon', $image_name] | str join ':')
-	let docker_image_name_major = (['docker-daemon', $image_name_major] | str join ':')
-	let docker_image_name_minor = (['docker-daemon', $image_name_minor] | str join ':')
 
 	let image = (^buildah commit --format docker $config.buildah.container $image_name)
 	log info $"[publish-image] Built image '($image_name)'"
@@ -273,14 +270,6 @@ def publish-image [
 	log info $"[publish-image] Tagged image '($image_name_major)'"
 	^buildah tag $image $image_name_minor
 	log info $"[publish-image] Tagged image '($image_name_minor)'"
-
-	# Publish the images to Docker for use.
-	^buildah push $image $docker_image_name
-	log info $"[publish-image] Published image '($docker_image_name)' to Docker"
-	^buildah push $image_name_major $docker_image_name_major
-	log info $"[publish-image] Published image '($docker_image_name_major)' to Docker"
-	^buildah push $image_name_minor $docker_image_name_minor
-	log info $"[publish-image] Published image '($docker_image_name_minor)' to Docker"
 
 	# Output to a log file...
 	mut output = $config.output.log
