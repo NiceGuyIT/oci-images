@@ -43,6 +43,19 @@ def load-config []: [nothing -> any, string -> any] {
 			$config.opensuse.name
 			$config.opensuse.version
 		] | str join '-')
+		# Latest tags: "latest" and "latest-leap-16.0"
+		$config.published.base.latest = 'latest'
+		$config.published.dev.latest = 'latest'
+		$config.published.base.latest_os = ([
+			'latest'
+			$config.opensuse.name
+			$config.opensuse.version
+		] | str join '-')
+		$config.published.dev.latest_os = ([
+			'latest'
+			$config.opensuse.name
+			$config.opensuse.version
+		] | str join '-')
 		# TODO: Make this configurable.
 		$config.output.log = 'output.log'
 		$config
@@ -255,12 +268,16 @@ def publish-image [
 	let published_version = ($config.published | get $name | get version)
 	let published_major_version = ($config.published | get $name | get major_version)
 	let published_minor_version = ($config.published | get $name | get minor_version)
+	let published_latest = ($config.published | get $name | get latest)
+	let published_latest_os = ($config.published | get $name | get latest_os)
 	let image_name = ([
 		($config.published | get $name | get name)
 		($config.published | get $name | get version)
 	]| str join ':')
 	let image_name_major = ([$published_name $published_major_version] | str join ':')
 	let image_name_minor = ([$published_name $published_minor_version] | str join ':')
+	let image_name_latest = ([$published_name $published_latest] | str join ':')
+	let image_name_latest_os = ([$published_name $published_latest_os] | str join ':')
 
 	let image = (^buildah commit --format docker $config.buildah.container $image_name)
 	log info $"[publish-image] Built image '($image_name)'"
@@ -270,6 +287,11 @@ def publish-image [
 	log info $"[publish-image] Tagged image '($image_name_major)'"
 	^buildah tag $image $image_name_minor
 	log info $"[publish-image] Tagged image '($image_name_minor)'"
+	# Tag with latest labels for convenience
+	^buildah tag $image $image_name_latest
+	log info $"[publish-image] Tagged image '($image_name_latest)'"
+	^buildah tag $image $image_name_latest_os
+	log info $"[publish-image] Tagged image '($image_name_latest_os)'"
 
 	# Output to a log file...
 	mut output = $config.output.log
@@ -278,7 +300,7 @@ def publish-image [
 		$output = $env.GITHUB_OUTPUT
 	}
 	$"image=($published_name)\n" | save --append $output
-	$"tags=($published_version) ($published_minor_version) ($published_major_version)\n" | save --append $output
+	$"tags=($published_version) ($published_minor_version) ($published_major_version) ($published_latest) ($published_latest_os)\n" | save --append $output
 
 	$config
 }
