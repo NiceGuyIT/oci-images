@@ -31,7 +31,7 @@ def "main install-binaries" [] {
 			} | url join
 		)
 		print $"  Installing binary: '($filename)' from ($url)"
-		http get $url | save $"($bin_path)/($filename)"
+		http get $url | save --force $"($bin_path)/($filename)"
 		chmod a+rx $"($bin_path)/($filename)"
 	}
 	print "Binaries installed."
