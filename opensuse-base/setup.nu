@@ -11,7 +11,11 @@ def "main install-binaries" [] {
 	let config = (open $config_path)
 
 	print "Installing binaries..."
+	# Skip the nu binary itself — it's already bootstrapped by the Dockerfile and is the
+	# currently running process (overwriting would fail with "Text file busy").
+	# Nu plugins (nu_plugin_*) are still installed.
 	$config.binaries.list
+	| where {|it| ($it.file? | default $it.name) != "nu" }
 	| par-each --threads 4 {|it|
 		let filename = ($it.file? | default $it.name)
 		let url = (
@@ -31,7 +35,7 @@ def "main install-binaries" [] {
 			} | url join
 		)
 		print $"  Installing binary: '($filename)' from ($url)"
-		http get $url | save --force $"($bin_path)/($filename)"
+		http get $url | save $"($bin_path)/($filename)"
 		chmod a+rx $"($bin_path)/($filename)"
 	}
 	print "Binaries installed."
