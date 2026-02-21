@@ -7,14 +7,15 @@ php:
 wordpress:
   version: latest
 
-frankenwp:
+frankenphp:
   # Docker URL and version
   url: "docker.io/dunglas/frankenphp"
-  version: builder-php8.4
+  builder_version: "builder-php8.4"
+  runtime_version: "1.9"
 
 caddy:
   url: docker.io/caddy
-  version: builder
+  version: "2.10"
 
 published:
   # Published image name and version
