@@ -4,9 +4,12 @@ name: Build openSUSE container
 
 on:
   push:
+    branches:
+      - "feat/migrate-to-buildkit"
     paths:
       - "opensuse-base/**"
       - ".github/workflows/build-opensuse-base.yml"
+      - ".github/workflows/build-and-push-image.yml"
 
 jobs:
   build-base:

@@ -1,5 +1,5 @@
 ---
-# Reusable workflow for building and pushing openSUSE images.
+# Reusable workflow for building and pushing container images using Docker BuildKit.
 name: Build and push image
 
 on:
@@ -27,40 +27,41 @@ jobs:
       contents: read
       packages: write
     env:
-      # Image registry and registry user are set in the steps below.
       IMAGE_REGISTRY: ""
       REGISTRY_PROVIDER: ghcr.io
       REGISTRY_USER: ""
-      REGISTRY_PASSWORD: ${{ github.token }}
     outputs:
-      registry-paths: ${{ steps.push-to-ghcr.outputs.registry-paths }}
+      registry-paths: ${{ steps.push-image.outputs.registry-paths }}
 
     steps:
       - name: Clone the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ github.token }}
 
       # Use Nushell for all scripts.
       - uses: hustcer/setup-nu@v3
         with:
-          # Don't use 0.90 here, as it would be a float number and would be converted to 0.9
-          # you can use v0.90/0.90.0 or '0.90'
           version: "0.101.0"
 
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: false
-          
-          # all of these default to true, but feel free to set to
-          # "false" if necessary for your workflow
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
+      #- name: Free Disk Space (Ubuntu)
+      #  uses: jlumbroso/free-disk-space@main
+      #  with:
+      #    tool-cache: false
+      #    android: true
+      #    dotnet: true
+      #    haskell: true
+      #    large-packages: true
+      #    docker-images: true
+      #    swap-storage: true
 
       # The repository owner needs to be lowercase.
       - name: Set environment variables
@@ -77,16 +78,30 @@ jobs:
           cd ${{ inputs.image-name }}
           ./build.nu ${{ inputs.image-type }}
 
-      # Example to push to GHCR: https://github.com/redhat-actions/push-to-registry/blob/main/.github/workflows/ghcr-push.yaml
-      - name: Push image to GitHub Container Repository
-        id: push-to-ghcr
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ env.REGISTRY_USER }}
-          password: ${{ env.REGISTRY_PASSWORD }}
-          image: ${{ steps.build-image.outputs.image }}
-          tags: ${{ steps.build-image.outputs.tags }}
+      - name: Push image to GitHub Container Registry
+        id: push-image
+        shell: nu {0}
+        env:
+          BUILD_IMAGE: ${{ steps.build-image.outputs.image }}
+          BUILD_TAGS: ${{ steps.build-image.outputs.tags }}
+        run: |
+          let image = $env.BUILD_IMAGE
+          let tags = ($env.BUILD_TAGS | split row ' ')
+
+          mut registry_paths = []
+          for tag in $tags {
+            let local_tag = $"($image):($tag)"
+            let remote_tag = $"($env.IMAGE_REGISTRY)/($image):($tag)"
+            print $"Tagging ($local_tag) as ($remote_tag)"
+            ^docker tag $local_tag $remote_tag
+            print $"Pushing ($remote_tag)"
+            ^docker push $remote_tag
+            $registry_paths = ($registry_paths | append $remote_tag)
+          }
+
+          let paths = ($registry_paths | str join ', ')
+          print $"Pushed: ($paths)"
+          $"registry-paths=($paths)\n" | save --append $env.GITHUB_OUTPUT
 
       - name: Print image URL
-        run: echo "Production image pushed to ${{ steps.push-to-ghcr.outputs.registry-paths }}"
+        run: echo "Image pushed to ${{ steps.push-image.outputs.registry-paths }}"

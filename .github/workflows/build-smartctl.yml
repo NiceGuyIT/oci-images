@@ -1,5 +1,5 @@
 ---
-# Build WordPress and push to GHCR.
+# Build smartctl_exporter and push to GHCR.
 name: Build smartctl_exporter container
 
 on:
@@ -7,6 +7,7 @@ on:
     paths:
       - "smartctl_exporter/**"
       - ".github/workflows/build-smartctl.yml"
+      - ".github/workflows/build-and-push-image.yml"
 
 jobs:
   build:

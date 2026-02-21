@@ -1,0 +1,21 @@
+---
+# Build FrankenPHP WordPress and push to GHCR.
+name: Build FrankenPHP WordPress container
+
+on:
+  push:
+    paths:
+      - "frankenphp-wordpress/**"
+      - ".github/workflows/build-frankenphp.yml"
+      - ".github/workflows/build-and-push-image.yml"
+
+jobs:
+  build:
+    name: Build FrankenPHP WordPress image
+    uses: ./.github/workflows/build-and-push-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: frankenphp-wordpress
+      image-type: base

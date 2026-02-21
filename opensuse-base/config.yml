@@ -9,7 +9,7 @@ opensuse:
 
 published:
   # The openSUSE name and version are appended: v0.1.1-leap-15.6
-  version: "v1.0.0"
+  version: "v1.1.0"
   base:
     # Published image name and version
     name: "opensuse-base"
