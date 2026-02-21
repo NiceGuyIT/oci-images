@@ -66,6 +66,10 @@ GitHub Actions workflows in `.github/workflows/`:
 - Build step uses `--load` to load images locally; push step tags and pushes to GHCR
 - Output written to `GITHUB_OUTPUT` (or `output.log` locally)
 
+## Safety Rules
+
+- **NEVER use force flags** in commands. For example: no `rm -rf`, no `save --force`, no `--force` on any command. If a command fails without force, the error reveals a logic bug that needs to be fixed properly, not suppressed.
+
 ## Code Style
 
 - **Formatter:** Prettier
