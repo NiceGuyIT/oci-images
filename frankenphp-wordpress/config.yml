@@ -3,19 +3,17 @@
 
 php:
   version: "8.4"
+  extensions: >-
+    bcmath,ctype,curl,dom,exif,fileinfo,filter,gd,iconv,imagick,intl,
+    mbregex,mbstring,mysqli,mysqlnd,opcache,openssl,pdo,pdo_mysql,
+    phar,posix,readline,redis,session,simplexml,soap,sockets,sodium,
+    tokenizer,xml,xmlreader,xmlwriter,zip,zlib
 
-wordpress:
-  version: latest
-
-frankenphp:
-  # Docker URL and version
-  url: "docker.io/dunglas/frankenphp"
-  builder_version: "builder-php8.4"
-  runtime_version: "1.9"
-
-caddy:
-  url: docker.io/caddy
-  version: "2.10"
+caddy_modules: >-
+  --with github.com/dunglas/caddy-cbrotli
+  --with github.com/dunglas/mercure/caddy
+  --with github.com/dunglas/vulcain/caddy
+  --with github.com/stephenmiracle/frankenwp/sidekick/middleware/cache
 
 published:
   # Published image name and version

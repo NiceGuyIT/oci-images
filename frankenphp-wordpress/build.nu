@@ -9,16 +9,16 @@ def main [
 	let config = (if ("config.yml" | path exists) {open config.yml})
 
 	let php_version = $config.php.version
-	let frankenphp_version = $config.frankenphp.runtime_version
-	let caddy_version = $config.caddy.version
+	let php_extensions = ($config.php.extensions | str replace --all "\n" "" | str trim)
+	let caddy_modules = ($config.caddy_modules | str replace --all "\n" "" | str trim)
 	let published_name = $config.published.name
 	let published_version = $config.published.version
 
 	log info $"Building ($published_name):($published_version)"
 	(^docker buildx build
 		--build-arg $"PHP_VERSION=($php_version)"
-		--build-arg $"FRANKENPHP_VERSION=($frankenphp_version)"
-		--build-arg $"CADDY_VERSION=($caddy_version)"
+		--build-arg $"PHP_EXTENSIONS=($php_extensions)"
+		--build-arg $"XCADDY_ARGS=($caddy_modules)"
 		--tag $"($published_name):($published_version)"
 		--load
 		.)
