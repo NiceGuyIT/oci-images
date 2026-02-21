@@ -6,6 +6,31 @@
 const config_path = '/tmp/build/config.yml'
 const bin_path = '/usr/local/bin'
 
+# Install system packages via zypper
+def "main install-packages" [
+	--variant: string		# Variant: base or dev-extras
+] {
+	let config = (open $config_path)
+
+	let packages = if $variant == "dev-extras" {
+		# Only the packages in dev that aren't already in base
+		let base_set = $config.packages.base
+		$config.packages.dev | where {|pkg| $pkg not-in $base_set}
+	} else {
+		$config.packages | get $variant
+	}
+
+	print $"Installing ($variant) packages: ($packages | str join ' ')"
+	^zypper --non-interactive --gpg-auto-import-keys refresh
+	if $variant == "base" {
+		# Only update during base install
+		^zypper --non-interactive update
+	}
+	^zypper --non-interactive install ...($packages)
+	^zypper --non-interactive clean --all
+	print $"($variant) packages installed."
+}
+
 # Download all single-file binaries in parallel
 def "main install-binaries" [] {
 	let config = (open $config_path)
@@ -167,6 +192,7 @@ def "main install-dev-extras" [] {
 # Main entry point (shows usage)
 def main [] {
 	print "Usage: setup.nu <subcommand>"
+	print "  install-packages --variant <base|dev-extras> - Install system packages via zypper"
 	print "  install-binaries   - Download all single-file binaries"
 	print "  add-user           - Create dev user and configure environment"
 	print "  install-user-tools --variant <base|dev> - Install user-level tools"

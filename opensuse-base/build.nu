@@ -62,13 +62,6 @@ def load-config []: [nothing -> any, string -> any] {
 	}
 }
 
-# Compute the extra packages that dev has beyond base
-def compute-dev-extra-packages [config: any]: nothing -> string {
-	let base_set = ($config.packages.base)
-	let dev_set = ($config.packages.dev)
-	$dev_set | where {|pkg| $pkg not-in $base_set} | str join ' '
-}
-
 # Main script
 def main [
 	name					# Image name: base or dev
@@ -89,9 +82,7 @@ def main [
 	let published_latest = ($config.published | get $name | get latest)
 	let published_latest_os = ($config.published | get $name | get latest_os)
 
-	# Compute package lists
-	let base_packages = ($config.packages.base | str join ' ')
-	let dev_extra_packages = (compute-dev-extra-packages $config)
+	# setup.nu reads config.yml directly; only nu bootstrap args needed
 	let nu_version = ($config.binaries.list | where name == 'nu' | first | get version)
 	let binaries_host = $config.binaries.host
 	let opensuse_version = $config.opensuse.version
@@ -110,8 +101,6 @@ def main [
 	(^docker buildx build
 		--target $name
 		--build-arg $"OPENSUSE_VERSION=($opensuse_version)"
-		--build-arg $"BASE_PACKAGES=($base_packages)"
-		--build-arg $"DEV_EXTRA_PACKAGES=($dev_extra_packages)"
 		--build-arg $"NU_VERSION=($nu_version)"
 		--build-arg $"BINARIES_HOST=($binaries_host)"
 		...$tag_args
