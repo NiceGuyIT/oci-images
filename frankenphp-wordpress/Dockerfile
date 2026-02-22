@@ -18,7 +18,10 @@ WORKDIR /go/src/app
 # Remove this when static-builder-musl ships v1.12+.
 RUN sed -i 's/config, _, err := caddycmd.LoadConfig/config, _, _, err := caddycmd.LoadConfig/' caddy/php-server.go
 
-RUN ./build-static.sh
+# Pass GitHub token (if provided) to avoid API rate limits during source downloads.
+RUN --mount=type=secret,id=github-token \
+	GITHUB_TOKEN=$(cat /run/secrets/github-token 2>/dev/null || true) \
+	./build-static.sh
 
 # Stage 2: Minimal runtime - static binary + Caddyfile in Alpine
 FROM alpine:3 AS runtime

@@ -10,9 +10,9 @@ on:
         required: true
         type: string
       image-type:
-        description: 'Type of image to build (base or dev)'
+        description: 'Image variant to build (e.g. base or dev). Only needed for multi-target images like opensuse-base.'
         required: false
-        default: base
+        default: ''
         type: string
     outputs:
       registry-paths:
@@ -21,7 +21,7 @@ on:
 
 jobs:
   build-and-push:
-    name: Build and push ${{ inputs.image-name }} image of type ${{ inputs.image-type }}
+    name: Build and push ${{ inputs.image-name }}${{ inputs.image-type != '' && format(' ({0})', inputs.image-type) || '' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -60,12 +60,17 @@ jobs:
           $"REGISTRY_USER=($owner)\n" | save --append $env.GITHUB_ENV
           $"IMAGE_REGISTRY=($env.REGISTRY_PROVIDER)/($owner)\n" | save --append $env.GITHUB_ENV
 
-      - name: Build ${{ inputs.image-name }} image of type ${{ inputs.image-type }}
+      - name: Build ${{ inputs.image-name }}${{ inputs.image-type != '' && format(' ({0})', inputs.image-type) || '' }}
         id: build-image
         shell: nu {0}
         run: |
           cd ${{ inputs.image-name }}
-          ./build.nu ${{ inputs.image-type }}
+          let image_type = "${{ inputs.image-type }}"
+          if ($image_type | is-empty) {
+            ./build.nu
+          } else {
+            ./build.nu $image_type
+          }
 
       - name: Push image to GitHub Container Registry
         id: push-image
