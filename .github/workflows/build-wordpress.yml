@@ -4,6 +4,7 @@ name: Build WordPress container
 
 on:
   push:
+    branches: [main]
     paths:
       - "wordpress/**"
       - ".github/workflows/build-wordpress.yml"
@@ -18,4 +19,3 @@ jobs:
       packages: write
     with:
       image-name: wordpress
-      image-type: base

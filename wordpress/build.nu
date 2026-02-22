@@ -1,9 +1,7 @@
 #!/usr/bin/env nu
 
 # Main script
-def main [
-	name					# Image name
-] {
+def main [] {
 	use std log
 
 	let config = (if ("config.yml" | path exists) {open config.yml})
