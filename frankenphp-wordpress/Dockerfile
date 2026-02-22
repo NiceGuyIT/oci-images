@@ -12,6 +12,12 @@ ENV XCADDY_ARGS=${XCADDY_ARGS}
 
 WORKDIR /go/src/app
 
+# Workaround: static-builder-musl ships FrankenPHP v1.11.2 which expects
+# caddycmd.LoadConfig to return 3 values, but Caddy now returns 4.
+# See: https://github.com/php/frankenphp/blob/main/caddy/php-server.go
+# Remove this when static-builder-musl ships v1.12+.
+RUN sed -i 's/config, _, err := caddycmd.LoadConfig/config, _, _, err := caddycmd.LoadConfig/' caddy/php-server.go
+
 RUN ./build-static.sh
 
 # Stage 2: Minimal runtime - static binary + Caddyfile in Alpine
