@@ -4,6 +4,7 @@ name: Build FrankenPHP WordPress container
 
 on:
   push:
+    branches: [main]
     paths:
       - "frankenphp-wordpress/**"
       - ".github/workflows/build-frankenphp.yml"

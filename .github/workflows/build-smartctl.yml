@@ -4,6 +4,7 @@ name: Build smartctl_exporter container
 
 on:
   push:
+    branches: [main]
     paths:
       - "smartctl_exporter/**"
       - ".github/workflows/build-smartctl.yml"

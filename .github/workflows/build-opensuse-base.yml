@@ -4,6 +4,7 @@ name: Build openSUSE container
 
 on:
   push:
+    branches: [main]
     paths:
       - "opensuse-base/**"
       - ".github/workflows/build-opensuse-base.yml"

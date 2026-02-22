@@ -4,6 +4,7 @@ name: Build WordPress container
 
 on:
   push:
+    branches: [main]
     paths:
       - "wordpress/**"
       - ".github/workflows/build-wordpress.yml"
