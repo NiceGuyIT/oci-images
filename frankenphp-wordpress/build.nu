@@ -34,7 +34,7 @@ def main [] {
 		$args = ($args | prepend [--secret $"id=github-token,src=($token_file)"])
 	}
 
-	log info $"Building ($published_name):($published_version) (WordPress ($wordpress_tag))"
+	log info $"Building ($published_name):($published_version) WordPress ($wordpress_tag)"
 	(^docker buildx build ...$args .)
 
 	log info $"Built image '($published_name):($published_version)'"

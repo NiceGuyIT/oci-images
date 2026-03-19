@@ -16,6 +16,9 @@ RUN git clone --branch ${COREDNS_VERSION} --depth 1 https://github.com/coredns/c
 # Insert the alias plugin into plugin.cfg (after the file plugin, since alias works with file/auto)
 RUN sed -i '/^file:file/a alias:'"${ALIAS_PLUGIN_MODULE}"'' plugin.cfg
 
+# Allow toolchain auto-download for newer Go versions required by CoreDNS
+ENV GOTOOLCHAIN=auto
+
 # Generate and build
 RUN go generate && make
 
