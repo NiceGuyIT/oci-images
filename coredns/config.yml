@@ -1,0 +1,15 @@
+---
+# The variables are separated out to make it easier to update.
+
+coredns:
+  # CoreDNS source version to build from
+  version: v1.14.2
+
+alias_plugin:
+  # CoreDNS alias plugin (zone apex CNAME flattening)
+  module: "github.com/serverwentdown/alias"
+
+published:
+  # Published image name and version
+  name: "coredns"
+  version: "v1.14.2"

@@ -1,0 +1,21 @@
+---
+# Build CoreDNS with alias plugin and push to GHCR.
+name: Build CoreDNS container
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "coredns/**"
+      - ".github/workflows/build-coredns.yml"
+      - ".github/workflows/build-and-push-image.yml"
+
+jobs:
+  build:
+    name: Build CoreDNS image
+    uses: ./.github/workflows/build-and-push-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: coredns

@@ -1,6 +1,10 @@
 ---
 # The variables are separated out to make it easier to update.
 
+wordpress:
+  url: https://hub.docker.com/_/wordpress
+  version: "6.8.1"
+
 php:
   version: "8.4"
   extensions: >-
@@ -9,11 +13,14 @@ php:
     phar,posix,readline,redis,session,simplexml,soap,sockets,sodium,ssh2,
     tokenizer,xml,xmlreader,xmlwriter,xz,zip,zlib,zstd
 
+# Caddy modules compiled into the static binary.
+# The cache middleware uses =./cache to reference the locally downloaded source
+# (remote Go module resolution fails for this path).
 caddy_modules: >-
   --with github.com/dunglas/caddy-cbrotli
   --with github.com/dunglas/mercure/caddy
   --with github.com/dunglas/vulcain/caddy
-  --with github.com/stephenmiracle/frankenwp/sidekick/middleware/cache
+  --with github.com/stephenmiracle/frankenwp/sidekick/middleware/cache=./cache
 
 published:
   # Published image name and version

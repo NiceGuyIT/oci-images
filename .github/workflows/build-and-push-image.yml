@@ -63,6 +63,8 @@ jobs:
       - name: Build ${{ inputs.image-name }}${{ inputs.image-type != '' && format(' ({0})', inputs.image-type) || '' }}
         id: build-image
         shell: nu {0}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           cd ${{ inputs.image-name }}
           let image_type = "${{ inputs.image-type }}"
