@@ -82,8 +82,8 @@ RUN chmod +x /usr/local/bin/wp-cli.phar /usr/local/bin/wp
 # Create required directories (no VOLUME directive — bind-mount wp-content explicitly)
 RUN mkdir -p /data/caddy /config/caddy /var/www/html
 
-# Non-root user
-RUN adduser -D -H www-data 2>/dev/null; \
+# Non-root user (Alpine has a www-data group but no user; -G uses the existing group)
+RUN adduser -D -H -G www-data www-data && \
 	chown -R www-data:www-data \
 		/data/caddy \
 		/config/caddy \
