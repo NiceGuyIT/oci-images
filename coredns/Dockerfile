@@ -1,7 +1,7 @@
 ARG COREDNS_VERSION=v1.14.2
 
 # Stage 1: Build CoreDNS with the alias plugin
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 ARG COREDNS_VERSION
 ARG ALIAS_PLUGIN_MODULE=github.com/serverwentdown/alias
@@ -16,11 +16,8 @@ RUN git clone --branch ${COREDNS_VERSION} --depth 1 https://github.com/coredns/c
 # Insert the alias plugin into plugin.cfg (after the file plugin, since alias works with file/auto)
 RUN sed -i '/^file:file/a alias:'"${ALIAS_PLUGIN_MODULE}"'' plugin.cfg
 
-# Allow toolchain auto-download for newer Go versions required by CoreDNS
-ENV GOTOOLCHAIN=auto
-
-# Generate and build
-RUN go generate && make
+# Generate plugin imports, fetch the alias module, then build
+RUN go generate && go get ${ALIAS_PLUGIN_MODULE} && go mod tidy && make
 
 # Stage 2: Minimal runtime image
 FROM alpine:3
