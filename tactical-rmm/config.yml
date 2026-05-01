@@ -1,0 +1,31 @@
+---
+# Shared configuration for every Tactical RMM image. A single TRMM_VERSION
+# bump rebuilds backend, frontend, meshcentral, nats and nginx.
+
+tacticalrmm:
+  url: https://github.com/amidaware/tacticalrmm/releases
+  # The "v" prefix is added in build.nu when constructing the GitHub tarball URL.
+  version: 1.4.0
+
+components:
+  backend:
+    # Published image name. The tag tracks the Tactical RMM upstream version.
+    image_name: tactical-backend
+    base_image: python
+    base_tag: 3.11.8-slim
+  frontend:
+    image_name: tactical-frontend
+    base_image: nginxinc/nginx-unprivileged
+    base_tag: stable-alpine
+  meshcentral:
+    image_name: tactical-meshcentral
+    base_image: node
+    base_tag: 20-alpine
+  nats:
+    image_name: tactical-nats
+    base_image: nats
+    base_tag: 2.12.3-alpine
+  nginx:
+    image_name: tactical-nginx
+    base_image: nginxinc/nginx-unprivileged
+    base_tag: stable-alpine

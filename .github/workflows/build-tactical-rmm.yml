@@ -1,0 +1,65 @@
+---
+# Build every Tactical RMM image (backend, frontend, meshcentral, nats, nginx)
+# and push to GHCR. Any change under tactical-rmm/ triggers a rebuild of all
+# five so the published images stay in lockstep with the pinned upstream
+# release.
+name: Build Tactical RMM containers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tactical-rmm/**"
+      - ".github/workflows/build-tactical-rmm.yml"
+      - ".github/workflows/build-and-push-image.yml"
+
+jobs:
+  build-backend:
+    name: Build tactical-backend image
+    uses: ./.github/workflows/build-and-push-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: tactical-rmm
+      image-type: backend
+
+  build-frontend:
+    name: Build tactical-frontend image
+    uses: ./.github/workflows/build-and-push-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: tactical-rmm
+      image-type: frontend
+
+  build-meshcentral:
+    name: Build tactical-meshcentral image
+    uses: ./.github/workflows/build-and-push-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: tactical-rmm
+      image-type: meshcentral
+
+  build-nats:
+    name: Build tactical-nats image
+    uses: ./.github/workflows/build-and-push-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: tactical-rmm
+      image-type: nats
+
+  build-nginx:
+    name: Build tactical-nginx image
+    uses: ./.github/workflows/build-and-push-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: tactical-rmm
+      image-type: nginx
