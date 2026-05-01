@@ -1,0 +1,194 @@
+---
+# Tactical RMM stack.
+#
+# Brings up the five custom images (backend, frontend, meshcentral, nats, nginx)
+# plus the stock postgres and redis dependencies. MeshCentral runs against its
+# built-in NeDB store, so no MongoDB container is needed. Copy `.env.example`
+# to `.env`, fill in the secrets and host names, then `docker compose up -d`.
+#
+# IMAGE_REPO defaults to ghcr.io/niceguyit/ (the published location). Set it to
+# an empty string if you have built the images locally with `./build.nu base`
+# in each tactical-* directory and want to use those local tags directly.
+
+networks:
+  tactical-private:
+    name: tactical-private
+    driver: bridge
+
+volumes:
+  tactical-data:
+    name: tactical-data
+  tactical-meshcentral-data:
+    name: tactical-meshcentral-data
+  tactical-postgres:
+    name: tactical-postgres
+  tactical-redis:
+    name: tactical-redis
+
+services:
+  tactical-postgres:
+    image: postgres:13-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: tacticalrmm
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
+    volumes:
+      - tactical-postgres:/var/lib/postgresql/data
+    networks:
+      - tactical-private
+
+  tactical-redis:
+    image: redis:6.0-alpine
+    user: 1000:1000
+    command: redis-server
+    restart: always
+    volumes:
+      - tactical-redis:/data
+    networks:
+      - tactical-private
+
+  tactical-init:
+    image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-backend:${VERSION}
+    restart: on-failure
+    command:
+      - tactical-init
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASS: ${POSTGRES_PASS}
+      APP_HOST: ${APP_HOST}
+      API_HOST: ${API_HOST}
+      CSRF_COOKIE_DOMAIN: ${CSRF_COOKIE_DOMAIN}
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN}
+      MESH_USER: ${MESH_USER}
+      MESH_HOST: ${MESH_HOST}
+      TRMM_USER: ${TRMM_USER}
+      TRMM_PASS: ${TRMM_PASS}
+      TRMM_DISABLE_WEB_TERMINAL: ${TRMM_DISABLE_WEB_TERMINAL}
+      TRMM_DISABLE_SERVER_SCRIPTS: ${TRMM_DISABLE_SERVER_SCRIPTS}
+      TRMM_DISABLE_SSO: ${TRMM_DISABLE_SSO}
+    depends_on:
+      - tactical-postgres
+      - tactical-meshcentral
+      - tactical-redis
+    volumes:
+      - tactical-data:/opt/tactical
+      - tactical-meshcentral-data:/meshcentral-data
+      - tactical-redis:/redis/data
+    networks:
+      - tactical-private
+
+  tactical-nats:
+    image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-nats:${VERSION}
+    user: 1000:1000
+    restart: always
+    environment:
+      API_HOST: ${API_HOST}
+    volumes:
+      - tactical-data:/opt/tactical
+    networks:
+      tactical-private:
+        aliases:
+          - ${API_HOST}
+
+  tactical-meshcentral:
+    image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-meshcentral:${VERSION}
+    user: 1000:1000
+    restart: always
+    environment:
+      MESH_HOST: ${MESH_HOST}
+      MESH_USER: ${MESH_USER}
+      MESH_PASS: ${MESH_PASS}
+      MESH_PERSISTENT_CONFIG: ${MESH_PERSISTENT_CONFIG}
+      NGINX_HOST_IP: tactical-nginx
+    volumes:
+      - tactical-data:/opt/tactical
+      - tactical-meshcentral-data:/home/node/app/meshcentral-data
+    networks:
+      tactical-private:
+        aliases:
+          - ${MESH_HOST}
+
+  tactical-frontend:
+    image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-frontend:${VERSION}
+    user: 1000:1000
+    restart: always
+    environment:
+      API_HOST: ${API_HOST}
+    volumes:
+      - tactical-data:/opt/tactical
+    networks:
+      - tactical-private
+
+  tactical-backend:
+    image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-backend:${VERSION}
+    user: 1000:1000
+    command:
+      - tactical-backend
+    restart: always
+    volumes:
+      - tactical-data:/opt/tactical
+    depends_on:
+      - tactical-postgres
+    networks:
+      - tactical-private
+
+  tactical-websockets:
+    image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-backend:${VERSION}
+    user: 1000:1000
+    command:
+      - tactical-websockets
+    restart: always
+    volumes:
+      - tactical-data:/opt/tactical
+    depends_on:
+      - tactical-postgres
+      - tactical-backend
+    networks:
+      - tactical-private
+
+  tactical-celery:
+    image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-backend:${VERSION}
+    user: 1000:1000
+    command:
+      - tactical-celery
+    restart: always
+    volumes:
+      - tactical-data:/opt/tactical
+    depends_on:
+      - tactical-postgres
+      - tactical-redis
+    networks:
+      - tactical-private
+
+  tactical-celerybeat:
+    image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-backend:${VERSION}
+    user: 1000:1000
+    command:
+      - tactical-celerybeat
+    restart: always
+    volumes:
+      - tactical-data:/opt/tactical
+    depends_on:
+      - tactical-postgres
+      - tactical-redis
+    networks:
+      - tactical-private
+
+  tactical-nginx:
+    image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-nginx:${VERSION}
+    user: 1000:1000
+    restart: always
+    environment:
+      APP_HOST: ${APP_HOST}
+      API_HOST: ${API_HOST}
+      MESH_HOST: ${MESH_HOST}
+      CERT_PUB_KEY: ${CERT_PUB_KEY}
+      CERT_PRIV_KEY: ${CERT_PRIV_KEY}
+    ports:
+      - "${TRMM_HTTP_PORT-80}:8080"
+      - "${TRMM_HTTPS_PORT-443}:4443"
+    volumes:
+      - tactical-data:/opt/tactical
+    networks:
+      - tactical-private

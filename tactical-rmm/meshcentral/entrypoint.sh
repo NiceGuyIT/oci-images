@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+#
+# MeshCentral entrypoint for Tactical RMM.
+#
+# Adapted from the upstream tactical-meshcentral entrypoint with the MongoDB
+# back end removed: omitting the "mongodb" key in settings makes MeshCentral
+# fall back to its built-in NeDB store under /home/node/app/meshcentral-data/.
+# That's the supported zero-dependency layout for current MeshCentral releases,
+# so the separate MongoDB container is no longer needed.
+
+set -e
+
+: "${MESH_USER:=meshcentral}"
+: "${MESH_PASS:=meshcentralpass}"
+: "${NGINX_HOST_IP:=tactical-nginx}"
+: "${NGINX_HOST_PORT:=4443}"
+: "${MESH_COMPRESSION_ENABLED:=false}"
+: "${MESH_PERSISTENT_CONFIG:=0}"
+: "${MESH_WEBRTC_ENABLED:=false}"
+: "${WS_MASK_OVERRIDE:=0}"
+: "${SMTP_HOST:=smtp.example.com}"
+: "${SMTP_PORT:=587}"
+: "${SMTP_FROM:=mesh@example.com}"
+: "${SMTP_USER:=mesh@example.com}"
+: "${SMTP_PASS:=mesh-smtp-pass}"
+: "${SMTP_TLS:=false}"
+
+if [ ! -f "/home/node/app/meshcentral-data/config.json" ] || [[ "${MESH_PERSISTENT_CONFIG}" -eq 0 ]]; then
+  cat >/home/node/app/meshcentral-data/config.json <<EOF
+{
+  "settings": {
+    "cert": "${MESH_HOST}",
+    "tlsOffload": "${NGINX_HOST_IP}",
+    "redirPort": 8080,
+    "WANonly": true,
+    "minify": 1,
+    "port": 4443,
+    "agentAliasPort": 443,
+    "aliasPort": 443,
+    "allowLoginToken": true,
+    "allowFraming": true,
+    "agentPing": 35,
+    "allowHighQualityDesktop": true,
+    "agentCoreDump": false,
+    "compression": ${MESH_COMPRESSION_ENABLED},
+    "wsCompression": ${MESH_COMPRESSION_ENABLED},
+    "agentWsCompression": ${MESH_COMPRESSION_ENABLED},
+    "webRTC": ${MESH_WEBRTC_ENABLED},
+    "maxInvalidLogin": {
+      "time": 5,
+      "count": 5,
+      "coolofftime": 30
+    }
+  },
+  "domains": {
+    "": {
+      "title": "Tactical RMM",
+      "title2": "TacticalRMM",
+      "newAccounts": false,
+      "mstsc": true,
+      "geoLocation": true,
+      "certUrl": "https://${NGINX_HOST_IP}:${NGINX_HOST_PORT}",
+      "agentConfig": [ "webSocketMaskOverride=${WS_MASK_OVERRIDE}" ]
+    }
+  },
+  "smtp": {
+    "host": "${SMTP_HOST}",
+    "port": ${SMTP_PORT},
+    "from": "${SMTP_FROM}",
+    "user": "${SMTP_USER}",
+    "pass": "${SMTP_PASS}",
+    "tls": ${SMTP_TLS}
+  }
+}
+EOF
+fi
+
+node node_modules/meshcentral --createaccount "${MESH_USER}" --pass "${MESH_PASS}" --email example@example.com
+node node_modules/meshcentral --adminaccount "${MESH_USER}"
+
+if [ ! -f "${TACTICAL_DIR}/tmp/mesh_token" ]; then
+  mesh_token=$(node node_modules/meshcentral --logintokenkey)
+
+  if [[ ${#mesh_token} -eq 160 ]]; then
+    echo "${mesh_token}" >"${TACTICAL_DIR}/tmp/mesh_token"
+  else
+    echo "Failed to generate mesh token. Fix the error and restart the mesh container"
+  fi
+fi
+
+until (echo >/dev/tcp/"${NGINX_HOST_IP}"/"${NGINX_HOST_PORT}") &>/dev/null; do
+  echo "waiting for nginx to start..."
+  sleep 5
+done
+
+node node_modules/meshcentral

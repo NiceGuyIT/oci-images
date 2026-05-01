@@ -81,3 +81,63 @@ instead of root.
 ```bash
 cd smartctl_exporter && ./build.nu base
 ```
+
+### Tactical RMM
+
+[Tactical RMM](https://github.com/amidaware/tacticalrmm) is built from the `tactical-rmm/` directory, which packages
+five custom images plus the stock `postgres:13-alpine` and `redis:6.0-alpine` dependencies. MeshCentral runs against
+its built-in NeDB store, so no MongoDB container is needed. The single shared `tactical-rmm/config.yml` pins the
+upstream Tactical RMM release; every image downloads the source tarball at that tag during build, so a version bump
+is a single-line change that rebuilds all five images together.
+
+
+| Image                  | Purpose                                                                   | Notes                                                                                                                                                                    |
+|------------------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `tactical-backend`     | Django API, Celery worker, Celery beat, Daphne websockets, init container | Single image dispatched by the entrypoint via the first argument (`tactical-init`, `tactical-backend`, `tactical-celery`, `tactical-celerybeat`, `tactical-websockets`). |
+| `tactical-frontend`    | Vue.js bundle on `nginx-unprivileged`                                     | The matching `tacticalrmm-web` release is pulled at build time using the `WEB_VERSION` recorded in upstream `settings.py`.                                               |
+| `tactical-meshcentral` | MeshCentral remote-access server                                          | The MeshCentral version is pulled from the upstream `MESH_VER` constant in `settings.py`. Uses the built-in NeDB store under `meshcentral-data` (no MongoDB required).   |
+| `tactical-nats`        | NATS server plus the upstream `nats-api` Go binary under `supervisord`    | Multi-arch aware: selects the upstream-shipped `nats-api` (amd64) or `nats-api-arm64` based on `TARGETARCH`.                                                             |
+| `tactical-nginx`       | TLS-terminating reverse proxy                                             | Generates a self-signed wildcard cert at start if `CERT_PUB_KEY` / `CERT_PRIV_KEY` are not provided.                                                                     |
+
+Build all five locally (single command):
+
+```bash
+cd tactical-rmm && ./build.nu
+```
+
+Or build a single component when iterating:
+
+```bash
+cd tactical-rmm && ./build.nu backend
+```
+
+Run the stack:
+
+```bash
+cd tactical-rmm
+cp .env.example .env
+# edit .env: hostnames, admin credentials, database passwords
+docker compose --file compose.example.yml up --detach
+```
+
+After the first start, watch `tactical-init` until it exits successfully (it creates the Django superuser, runs
+migrations, and writes the MeshCentral token). The web UI is served by `tactical-nginx` on `${TRMM_HTTPS_PORT}`.
+
+Verify a deployment end-to-end with `tactical-rmm/test.nu`. Given a domain (or explicit hosts) and an `X-API-KEY`, it
+exercises every public protocol surface in the stack: DNS, TLS, HTTP-to-HTTPS redirects, the Vue frontend SPA, the
+Django REST API (with and without auth), Django Channels websockets, the NATS websocket bridge, nginx static-file
+serving, and MeshCentral. The run is read-only: nothing in the deployment is mutated.
+
+```bash
+cd tactical-rmm
+./test.nu --domain example.com --api-key <KEY>
+
+# explicit per-host overrides
+./test.nu --app-host rmm.x.com --api-host api.x.com --mesh-host mesh.x.com --api-key <KEY>
+
+# self-signed certs + optional MeshCentral login probe
+./test.nu --domain example.com --api-key <KEY> --mesh-user tactical --mesh-pass <PASS> --insecure
+```
+
+Each test prints `[ PASS ]` or `[ FAIL ]` live; the script summarizes counts and exits non-zero on any failure, so it
+slots into a CI pipeline or a post-change check.
