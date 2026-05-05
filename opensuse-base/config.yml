@@ -159,9 +159,6 @@ binaries:
     - name: nu
       version: "0.112.2"
       file: nu_plugin_polars
-    - name: nu
-      version: "0.112.2"
-      file: nu_plugin_query
     - name: ouch
       version: "0.7.1"
     - name: pinger
