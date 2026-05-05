@@ -121,62 +121,61 @@ binaries:
   host: dufs.niceguyit.biz
   list:
     - name: age
-      version: "v1.1.1"
+      version: "v1.3.1"
     - name: btm
       version: "0.10.2"
     - name: bun
       version: "v1.3"
     - name: chezmoi
-      version: "v2.54.0"
+      version: "v2.70.2"
     - name: doggo
-      version: "v0.5.7"
+      version: "v1.1.5"
     # Dioxus
     - name: dx
-      version: "v0.7.2"
+      version: "v0.7.7"
     - name: fd
-      version: "8.7.1"
+      version: "v10.4.2"
     - name: gh
       version: "2.41.0"
     - name: just
-      version: "1.42.4"
+      version: "1.50.0"
     - name: kingfisher
       version: "1.59.0"
-    # FIXME: Upgrade Nebula to the latest.
     - name: nebula
-      version: "1.8.0"
+      version: "v1.10.3"
     - name: noseyparker
       version: "v0.24.0"
     - name: nu
-      version: "0.101.0"
+      version: "0.112.2"
     - name: nu
-      version: "0.101.0"
+      version: "0.112.2"
       file: nu_plugin_formats
     - name: nu
-      version: "0.101.0"
+      version: "0.112.2"
       file: nu_plugin_gstat
     - name: nu
-      version: "0.101.0"
+      version: "0.112.2"
       file: nu_plugin_inc
     - name: nu
-      version: "0.101.0"
+      version: "0.112.2"
       file: nu_plugin_polars
     - name: nu
-      version: "0.101.0"
+      version: "0.112.2"
       file: nu_plugin_query
     - name: ouch
-      version: "0.5.1"
+      version: "0.7.1"
     - name: pinger
       version: "v1.3.1"
     - name: rage
-      version: "v0.11.1"
+      version: "v0.11.2"
     - name: rg
       version: "14.0.3"
     - name: rclone
-      version: "v1.70.3"
+      version: "v1.74.0"
     - name: starship
-      version: "v1.22.1"
+      version: "v1.25.1"
     - name: trufflehog
-      version: "3.90.11"
+      version: "v3.95.2"
     - name: uv
       version: "0.9.21"
     - name: uv
