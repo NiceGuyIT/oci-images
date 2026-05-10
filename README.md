@@ -31,6 +31,27 @@ cd opensuse-base && ./build.nu base
 cd opensuse-base && ./build.nu dev
 ```
 
+### Rust builder
+
+The `rust-builder` images are pre-baked Rust toolchain images for downstream OCI builds. They eliminate the per-repo
+`apt-get install`, `cargo binstall dioxus-cli`, and `rustup target add wasm32-unknown-unknown` steps that otherwise
+re-run on every cold build. Three variants, each published as its own image:
+
+1. **base** (`rust-builder`) - Rust 1.93 + pkg-config, libssl-dev, build-essential, lld, ca-certificates,
+   curl, unzip + the WASM target + `cargo-binstall`. For generic Rust services with no Dioxus.
+2. **dioxus** (`rust-builder-dioxus`) - Adds Bun (Tailwind builds) and pinned `dioxus-cli` (0.7.7).
+   For server-rendered or WASM Dioxus apps.
+3. **dioxus-desktop** (`rust-builder-dioxus-desktop`) - Adds GTK / WebKitGTK / libxdo / appindicator / librsvg.
+   For Dioxus desktop builds (wry renderer).
+
+Versions and pins live in `rust-builder/config.yml`; bump there to roll a new tag.
+
+```bash
+cd rust-builder && ./build.nu base
+cd rust-builder && ./build.nu dioxus
+cd rust-builder && ./build.nu dioxus-desktop
+```
+
 ### WordPress
 
 The `wordpress` image extends the official `wordpress:6.8.1-php8.4-fpm-alpine` image with additional PHP extensions:
