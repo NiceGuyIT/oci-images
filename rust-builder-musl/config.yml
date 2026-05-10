@@ -1,0 +1,11 @@
+---
+# rust-builder-musl image versions and tag inputs.
+
+rust:
+  # Pinned Rust toolchain. Bumping this requires rebuilding every consumer.
+  version: "1.94"
+
+published:
+  # Published image version. Bump when any layer changes.
+  version: v1.0.0
+  name: rust-builder-musl

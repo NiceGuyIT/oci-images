@@ -33,23 +33,40 @@ cd opensuse-base && ./build.nu dev
 
 ### Rust builder
 
-The `rust-builder` images are pre-baked Rust toolchain images for downstream OCI builds. They eliminate the per-repo
-`apt-get install`, `cargo binstall dioxus-cli`, and `rustup target add wasm32-unknown-unknown` steps that otherwise
-re-run on every cold build. Three variants, each published as its own image:
+Pre-baked Rust toolchain images for downstream OCI / package builds. Each consumer drops onto one image with a single
+`FROM` line and zero `apt-get install` / `apk add` / `rustup component add` / `cargo binstall` of its own.
 
-1. **base** (`rust-builder`) - Rust 1.93 + pkg-config, libssl-dev, build-essential, lld, ca-certificates,
-   curl, unzip + the WASM target + `cargo-binstall`. For generic Rust services with no Dioxus.
-2. **dioxus** (`rust-builder-dioxus`) - Adds Bun (Tailwind builds) and pinned `dioxus-cli` (0.7.7).
-   For server-rendered or WASM Dioxus apps.
-3. **dioxus-desktop** (`rust-builder-dioxus-desktop`) - Adds GTK / WebKitGTK / libxdo / appindicator / librsvg.
-   For Dioxus desktop builds (wry renderer).
+Images are organized around the C runtime, since that is the dimension that splits the dependency set in half. Space
+inside an image is cheap relative to the per-build cost of installing tooling, so each image is intentionally a
+kitchen sink.
 
-Versions and pins live in `rust-builder/config.yml`; bump there to roll a new tag.
+1. **`rust-builder-glibc`** (Debian trixie) - Rust 1.94 + every glibc-compatible build dependency the org uses:
+   pkg-config, libssl-dev, build-essential, lld, libsqlite3-dev, libgit2-dev, zlib1g-dev, the full Dioxus desktop
+   stack (libwebkit2gtk-4.1-dev, libgtk-3-dev, libsoup-3.0-dev, libxdo-dev, libayatana-appindicator3-dev,
+   librsvg2-dev, libjavascriptcoregtk-4.1-dev), eframe Wayland + X11 + OpenGL + fontconfig deps, libudev / libusb /
+   libxkbcommon for HID/USB device access, nodejs/npm + bun for asset bundling, dioxus-cli (pinned), cargo-binstall,
+   cargo-watch, cargo-chef, the WASM target, and rustfmt + clippy.
+2. **`rust-builder-musl`** (Alpine 3) - Rust 1.94 + every musl-compatible build dependency: musl-dev, pkgconfig,
+   openssl-dev + openssl-libs-static, sqlite-static, lld, perl + make + linux-headers (for openssl-sys / ring),
+   bash + curl + wget + git + ffmpeg, cargo-binstall, cargo-watch, the WASM target, and rustfmt + clippy.
+3. **`rust-builder-glibc-windows`** (Debian trixie) - Rust 1.94 + mingw-w64 cross toolchain (32-bit + 64-bit) +
+   `x86_64-pc-windows-gnu` + `i686-pc-windows-gnu` rustup targets. Separate image because the mingw toolchain is
+   large (~1.5GB) and only one consumer (`da-os`) needs it; scope expected to deviate (msvc target, additional CRTs).
+
+Versions live in each image's `config.yml`; bump there to roll a new tag.
 
 ```bash
-cd rust-builder && ./build.nu base
-cd rust-builder && ./build.nu dioxus
-cd rust-builder && ./build.nu dioxus-desktop
+cd rust-builder-glibc && ./build.nu
+cd rust-builder-musl && ./build.nu
+cd rust-builder-glibc-windows && ./build.nu
+```
+
+Tag scheme encodes Rust + base distro:
+
+```
+rust-builder-glibc:v1.0.0-rust1.94-trixie
+rust-builder-musl:v1.0.0-rust1.94-alpine
+rust-builder-glibc-windows:v1.0.0-rust1.94-trixie
 ```
 
 ### WordPress
