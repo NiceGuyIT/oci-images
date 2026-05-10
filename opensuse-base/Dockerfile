@@ -26,6 +26,13 @@ RUN nu /tmp/build/setup.nu add-user
 USER dev
 RUN nu --login --commands "nu /tmp/build/setup.nu install-user-tools --variant base"
 
+# Make user-installed binaries discoverable to non-login shells (`docker exec`,
+# act CI, anything that doesn't go through PAM). Login shells / ssh sessions /
+# devcontainer userEnvProbe get the same PATH from /etc/profile.d/dev-paths.sh
+# written by setup.nu::add-user; this ENV is the second half of the same wiring
+# for environments that inherit Docker's image metadata directly.
+ENV PATH="/home/dev/.cargo/bin:/home/dev/.bun/bin:${PATH}"
+
 # ---- Stage: dev (extends base) ----
 FROM base AS dev
 
