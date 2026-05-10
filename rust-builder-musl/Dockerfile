@@ -35,6 +35,7 @@ RUN apk add --no-cache \
         sqlite-static \
         wget
 
+# rustfmt + clippy ship as separate components in the slim image.
 RUN rustup component add clippy rustfmt \
     && rustup target add wasm32-unknown-unknown
 
