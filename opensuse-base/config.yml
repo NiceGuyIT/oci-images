@@ -35,6 +35,7 @@ packages:
     - which
     # Required for Forgejo actions
     - nodejs-common
+    - nodejs24
     - openssh-clients
     # Container tools
     - buildah
