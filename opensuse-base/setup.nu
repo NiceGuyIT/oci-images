@@ -88,6 +88,17 @@ def "main add-user" [] {
 	# Register nu as a valid shell
 	"/usr/local/bin/nu\n" | save --append /etc/shells
 
+	# Make user-installed binaries (cargo, bun, etc.) discoverable to login
+	# shells: ssh sessions for JetBrains Remote, VS Code devcontainer
+	# userEnvProbe, bash --login.  /etc/profile.d/*.sh is sourced by
+	# /etc/profile, so anything dropped here lands on PATH for every login.
+	let user_home = $"/home/($container_user)"
+	let path_line = (
+		'export PATH="' + $user_home + '/.cargo/bin:' + $user_home + '/.bun/bin:$PATH"' + "\n"
+	)
+	$path_line | save /etc/profile.d/dev-paths.sh
+	chmod a+r /etc/profile.d/dev-paths.sh
+
 	# Create user with docker group access
 	^useradd --groups 'users,docker' --shell $login_shell --create-home $container_user
 
@@ -149,6 +160,15 @@ def "main install-user-tools" [
 		chmod a+x $rustup
 		^$rustup -y --no-modify-path --default-toolchain $rust_version
 		rm $rustup
+
+		# Pre-install rustup components and targets every Rust check.yml in
+		# the org expects: clippy + rustfmt for `cargo clippy` / `cargo fmt
+		# --check`, wasm32 target for Dioxus / Yew / generic WASM builds.
+		# Without these the workflow has to `rustup component add` on every
+		# job and the runner image is incomplete out of the box.
+		let rustup_bin = $"($env.HOME)/.cargo/bin/rustup"
+		^$rustup_bin component add clippy rustfmt
+		^$rustup_bin target add wasm32-unknown-unknown
 	} else {
 		print 'Failed to download rustup'
 	}

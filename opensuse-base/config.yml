@@ -9,7 +9,7 @@ opensuse:
 
 published:
   # The openSUSE name and version are appended: v0.1.1-leap-15.6
-  version: "v1.2.0"
+  version: "v1.3.0"
   base:
     # Published image name and version
     name: "opensuse-base"
@@ -117,7 +117,7 @@ rust:
   # Note: Rust has a 6-week release cycle and only the latest stable version is officially supported.
   # There's no long-term support (LTS) model.
   # Possible value: stable
-  version: "1.93"
+  version: "1.94"
 
 binaries:
   host: dufs.niceguyit.biz
