@@ -122,9 +122,6 @@ def "main install-user-tools" [
 	let config = (open $config_path)
 	let rust_version = ($config.rust?.version? | default "stable")
 
-	# nvm and node
-	nvm-install.nu
-
 	# Install global NPM packages using bun
 	$config.bun
 	| get $variant
