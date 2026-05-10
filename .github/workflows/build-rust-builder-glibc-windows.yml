@@ -1,0 +1,21 @@
+---
+# Build rust-builder-glibc-windows image and push to GHCR.
+name: Build rust-builder-glibc-windows container
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "rust-builder-glibc-windows/**"
+      - ".github/workflows/build-rust-builder-glibc-windows.yml"
+      - ".github/workflows/build-and-push-image.yml"
+
+jobs:
+  build:
+    name: Build rust-builder-glibc-windows image
+    uses: ./.github/workflows/build-and-push-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: rust-builder-glibc-windows

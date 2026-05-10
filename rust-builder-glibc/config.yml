@@ -1,0 +1,21 @@
+---
+# rust-builder-glibc image versions and tag inputs.
+
+rust:
+  # Pinned Rust toolchain. Bumping this requires rebuilding every consumer.
+  version: "1.94"
+
+debian:
+  # Debian codename for the rust:<version>-slim-<variant> base image.
+  # Trixie ships glibc 2.41, required by the pre-built dioxus-cli binary.
+  variant: trixie
+
+dioxus:
+  # Pinned dioxus-cli version installed in the image. Must match the dioxus
+  # crate version pinned in consumer Cargo.toml files.
+  version: "0.7.7"
+
+published:
+  # Published image version. Bump when any layer changes.
+  version: v1.0.0
+  name: rust-builder-glibc

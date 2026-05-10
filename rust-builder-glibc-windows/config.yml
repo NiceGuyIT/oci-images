@@ -1,0 +1,15 @@
+---
+# rust-builder-glibc-windows image versions and tag inputs.
+
+rust:
+  # Pinned Rust toolchain.
+  version: "1.94"
+
+debian:
+  # Debian codename for the base image. Trixie host, mingw cross toolchain.
+  variant: trixie
+
+published:
+  # Published image version. Bump when any layer changes.
+  version: v1.0.0
+  name: rust-builder-glibc-windows
