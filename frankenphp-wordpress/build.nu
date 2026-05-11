@@ -11,7 +11,9 @@ def main [] {
 	let php_extensions = ($config.php.extensions | str replace --all "\n" "" | str trim)
 	let caddy_modules = ($config.caddy_modules | str replace --all "\n" "" | str trim)
 	let published_name = $config.published.name
-	let published_version = $config.published.version
+	# Image tag pins the PHP version so the same image version can be rebuilt against
+	# a new PHP minor without colliding: frankenphp-wordpress:v0.1.0-php8.5
+	let published_version = $"($config.published.version)-php($php_version)"
 
 	# Compute WordPress image tag for the source stage
 	let wordpress_tag = $"($wordpress_version)-php($php_version)-fpm-alpine"

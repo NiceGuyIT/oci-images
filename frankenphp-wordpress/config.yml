@@ -1,12 +1,16 @@
 ---
 # The variables are separated out to make it easier to update.
 
+# https://hub.docker.com/_/wordpress
 wordpress:
-  url: https://hub.docker.com/_/wordpress
-  version: "6.8.1"
+  version: "6.9.4"
 
+# https://www.php.net/supported-versions.php
+# Extensions are compiled into the static FrankenPHP binary by static-php-cli.
+# Pinned versions live in spc's source manifest.
+# Redis: https://pecl.php.net/package/redis
 php:
-  version: "8.4"
+  version: "8.5"
   extensions: >-
     bcmath,ctype,curl,dom,exif,fileinfo,filter,gd,iconv,imagick,intl,
     ldap,mbregex,mbstring,mysqli,mysqlnd,opcache,openssl,pdo,pdo_mysql,
@@ -20,9 +24,9 @@ caddy_modules: >-
   --with github.com/dunglas/caddy-cbrotli
   --with github.com/dunglas/mercure/caddy
   --with github.com/dunglas/vulcain/caddy
-  --with github.com/stephenmiracle/frankenwp/sidekick/middleware/cache=./cache
 
 published:
-  # Published image name and version
+  # Published image name and version. PHP version is appended in build.nu so the
+  # final tag looks like: frankenphp-wordpress:v0.1.0-php8.5
   name: "frankenphp-wordpress"
   version: "v0.1.0"
