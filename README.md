@@ -50,8 +50,11 @@ kitchen sink.
    openssl-dev + openssl-libs-static, sqlite-static, lld, perl + make + linux-headers (for openssl-sys / ring),
    bash + curl + wget + git + ffmpeg, cargo-binstall, cargo-watch, the WASM target, and rustfmt + clippy.
 3. **`rust-builder-glibc-windows`** (Debian trixie) - Rust 1.94 + mingw-w64 cross toolchain (32-bit + 64-bit) +
-   `x86_64-pc-windows-gnu` + `i686-pc-windows-gnu` rustup targets. Separate image because the mingw toolchain is
-   large (~1.5GB) and only one consumer (`da-os`) needs it; scope expected to deviate (msvc target, additional CRTs).
+   `x86_64-pc-windows-gnu` + `i686-pc-windows-gnu` rustup targets, plus `perl` + `make` + `libssl-dev` for the OpenSSL
+   C dependency that the libgit2 git stack and `reqwest` pull. Separate image because the mingw toolchain is large
+   (~1.5GB); scope expected to deviate (msvc target, additional CRTs). Cross-compiling OpenSSL-linking crates to
+   Windows has two gotchas (vendoring the Windows-target OpenSSL vs. the host-side `openssl-sys`); see
+   [`rust-builder-glibc-windows/README.md`](rust-builder-glibc-windows/README.md).
 
 Versions live in each image's `config.yml`; bump there to roll a new tag.
 
@@ -66,7 +69,7 @@ Tag scheme encodes Rust + base distro:
 ```
 rust-builder-glibc:v1.0.0-rust1.94-trixie
 rust-builder-musl:v1.0.0-rust1.94-alpine
-rust-builder-glibc-windows:v1.0.0-rust1.94-trixie
+rust-builder-glibc-windows:v1.1.0-rust1.94-trixie
 ```
 
 ### WordPress
