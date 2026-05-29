@@ -11,5 +11,5 @@ debian:
 
 published:
   # Published image version. Bump when any layer changes.
-  version: v1.0.0
+  version: v1.1.0
   name: rust-builder-glibc-windows
