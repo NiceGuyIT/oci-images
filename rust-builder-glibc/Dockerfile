@@ -69,12 +69,10 @@ RUN curl --location --silent --show-error \
         https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-gnu.tgz \
     | tar --extract --gzip --directory /usr/local/cargo/bin
 
-# Bun for Tailwind / asset bundling. Installed under /root/.bun for
-# compatibility with consumer scripts that look there; symlinked to
-# /usr/local/bin so PATH-agnostic invocations also resolve.
-RUN curl --fail --location --silent --show-error https://bun.sh/install | bash \
-    && ln -s /root/.bun/bin/bun /usr/local/bin/bun
-ENV PATH="/root/.bun/bin:${PATH}"
+# Bun for Tailwind / asset bundling. Installed directly under /usr/local so
+# the binary lands at /usr/local/bin/bun: world-readable, already on PATH, and
+# reachable by non-root consumers without traversing /root (mode 700).
+RUN curl --fail --location --silent --show-error https://bun.sh/install | env BUN_INSTALL=/usr/local bash
 
 # dioxus-cli pinned (must match the dioxus crate version in consumer
 # Cargo.toml files; bump in config.yml when the crate version moves).
