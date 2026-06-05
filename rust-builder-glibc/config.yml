@@ -17,5 +17,5 @@ dioxus:
 
 published:
   # Published image version. Bump when any layer changes.
-  version: v1.0.0
+  version: v1.0.1
   name: rust-builder-glibc
