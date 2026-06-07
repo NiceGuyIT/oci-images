@@ -70,9 +70,13 @@ RUN curl --location --silent --show-error \
     | tar --extract --gzip --directory /usr/local/cargo/bin
 
 # Bun for Tailwind / asset bundling. Installed directly under /usr/local so
-# the binary lands at /usr/local/bin/bun: world-readable, already on PATH, and
-# reachable by non-root consumers without traversing /root (mode 700).
-RUN curl --fail --location --silent --show-error https://bun.sh/install | env BUN_INSTALL=/usr/local bash
+# the binaries land at /usr/local/bin/{bun,bunx}: world-readable, already on
+# PATH, and reachable by non-root consumers without traversing /root (mode 700).
+# `bunx` ships in the release zip rather than being created by the installer, so
+# smoke-test both: fail the build if upstream ever stops shipping bunx.
+RUN curl --fail --location --silent --show-error https://bun.sh/install | env BUN_INSTALL=/usr/local bash \
+    && bun --version \
+    && bunx --version
 
 # dioxus-cli pinned (must match the dioxus crate version in consumer
 # Cargo.toml files; bump in config.yml when the crate version moves).
