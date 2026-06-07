@@ -9,7 +9,7 @@ opensuse:
 
 published:
   # The openSUSE name and version are appended: v0.1.1-leap-15.6
-  version: "v1.3.1"
+  version: "v1.4.0"
   base:
     # Published image name and version
     name: "opensuse-base"
@@ -43,6 +43,10 @@ packages:
     - docker-compose
     - docker-buildx
     - fuse-overlayfs
+    # Provides libudev.pc (pkgconfig(libudev)); libudev1 ships only the runtime
+    # library. Needed by Umbra builds. On Leap 16.0 the udev devel files live in
+    # systemd-devel; there is no separate libudev-devel package.
+    - systemd-devel
   dev:
     # The user inside the container is "dev"
     - sudo
