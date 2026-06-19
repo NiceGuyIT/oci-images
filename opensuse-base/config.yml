@@ -9,7 +9,7 @@ opensuse:
 
 published:
   # The openSUSE name and version are appended: v0.1.1-leap-15.6
-  version: "v1.4.1"
+  version: "v1.5.0"
   base:
     # Published image name and version
     name: "opensuse-base"
@@ -126,6 +126,93 @@ rust:
   # There's no long-term support (LTS) model.
   # Possible value: stable
   version: "1.94"
+
+playwright:
+  # Playwright E2E browsers, pre-baked into the DEV image only, so CI never
+  # downloads browsers at test time and never hits Playwright's unsupported-OS
+  # fallback that shells out to apt-get (which does not exist on Leap).
+  # The version is keyed to both the browser builds and the vendored Ubuntu
+  # libraries below, so it MUST match the @playwright/test version consuming
+  # projects pin (mokosh-server e2e pins 1.60.0; see PMS issue).
+  version: "1.60.0"
+  browsers:
+    - chromium
+    - firefox
+    - webkit
+  # Runtime system libraries for the Playwright-bundled browsers, from the Leap
+  # 16.0 OSS repo. Chromium/Firefox need the X/GTK3/NSS set; WebKit adds GTK4,
+  # gstreamer (incl. the libav plugin for h.264), and assorted codec/text libs.
+  # Verified against opensuse/leap:16.0 by launching all three browsers headless.
+  packages:
+    # Extraction tooling for the vendored Ubuntu .debs below (provides ar).
+    - binutils
+    # Chromium + Firefox
+    - libasound2
+    - libatk-1_0-0
+    - libatk-bridge-2_0-0
+    - libatspi0
+    - libcairo2
+    - libcups2
+    - libdbus-1-3
+    - libdbus-glib-1-2
+    - libdrm2
+    - libgbm1
+    - libgtk-3-0
+    - libpango-1_0-0
+    - libX11-6
+    - libXcomposite1
+    - libXcursor1
+    - libXdamage1
+    - libXext6
+    - libXfixes3
+    - libXi6
+    - libXrandr2
+    - libXt6
+    - libxcb1
+    - libxkbcommon0
+    - libxshmfence1
+    - mozilla-nspr
+    - mozilla-nss
+    # WebKit (additional)
+    - gstreamer
+    - gstreamer-plugins-base
+    - gstreamer-plugins-good
+    - gstreamer-plugins-bad
+    - gstreamer-plugins-libav
+    - libatomic1
+    - libavif16
+    - libenchant-2-2
+    - libevent-2_1-7
+    - libglvnd
+    - libgstcodecparsers-1_0-0
+    - libgstgl-1_0-0
+    - libgstreamer-1_0-0
+    - libgtk-4-1
+    - libgudev-1_0-0
+    - libharfbuzz-icu0
+    - libhyphen0
+    - libmanette-0_2-0
+    - libnotify4
+    - libopus0
+    - libsecret-1-0
+    - libwebp7
+    - libwebpdemux2
+    - libwoff2dec1_0_2
+    - libwpe-1_0-1
+    - libWPEBackend-fdo-1_0-1
+    - libxslt1
+  # WebKit's Playwright build is compiled for Ubuntu 24.04 and hard-links ICU 74,
+  # Ubuntu's split flite voice libraries, and libx264 - none of which exist in
+  # Leap 16.0 (which ships ICU 77, a monolithic flite, and no libx264 in OSS).
+  # Vendor the exact .so files from the Ubuntu 24.04 pool into /usr/local/lib so
+  # the dynamic loader resolves them next to the system libraries. The sonames
+  # are distinct from Leap's, so they coexist (no clash with ICU 77). If a URL
+  # 404s the pool rotated the point release: bump to the current 24.04 version
+  # (same soname, ABI-compatible).
+  ubuntu_libs:
+    - https://archive.ubuntu.com/ubuntu/pool/main/i/icu/libicu74_74.2-1ubuntu3.1_amd64.deb
+    - https://archive.ubuntu.com/ubuntu/pool/universe/f/flite/libflite1_2.2-7build1_amd64.deb
+    - https://archive.ubuntu.com/ubuntu/pool/universe/x/x264/libx264-164_0.164.3108+git31e19f9-2build2_amd64.deb
 
 binaries:
   host: dufs.niceguyit.biz

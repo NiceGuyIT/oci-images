@@ -40,6 +40,14 @@ FROM base AS dev
 USER root
 RUN nu /tmp/build/setup.nu install-packages --variant dev-extras
 
+# Install Playwright browser system libraries + vendored Ubuntu support libs.
+# Pre-baking these (and the browsers below) lets E2E suites run on this image
+# without Playwright's unsupported-OS fallback to apt-get.
+RUN nu /tmp/build/setup.nu install-playwright-libs
+
 # Install extra dev bun/uv packages as dev user
 USER dev
 RUN nu --login --commands "nu /tmp/build/setup.nu install-dev-extras"
+
+# Pre-download the Playwright browser binaries into the dev user's cache
+RUN nu --login --commands "nu /tmp/build/setup.nu install-playwright-browsers"

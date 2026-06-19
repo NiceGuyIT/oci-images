@@ -206,6 +206,71 @@ def "main install-dev-extras" [] {
 	print "Dev extras installed."
 }
 
+# Install Playwright browser runtime dependencies (dev stage, runs as root).
+# Two parts: the zypper system libraries, and the Ubuntu-only support libraries
+# WebKit's prebuilt (Ubuntu 24.04) binary hard-links but Leap 16.0 does not
+# ship (ICU 74, the split flite voice libraries, libx264). The Ubuntu .so files
+# are vendored into /usr/local/lib, whose distinct sonames coexist with Leap's
+# own (ICU 77, etc.), and the loader cache is refreshed so the browsers resolve
+# them. Verified against opensuse/leap:16.0 by launching all three browsers.
+def "main install-playwright-libs" [] {
+	let config = (open $config_path)
+	let pw = $config.playwright
+
+	print $"Installing Playwright system packages: ($pw.packages | str join ' ')"
+	^zypper --non-interactive --gpg-auto-import-keys refresh
+	^zypper --non-interactive install ...($pw.packages)
+
+	# Vendor the Ubuntu .so files into /usr/local/lib.
+	let vendor_dir = '/usr/local/lib/playwright'
+	let stage = '/tmp/pw-ubuntu-libs'
+	mkdir $vendor_dir
+	# Start from a clean staging dir so a re-run never collides with a leftover
+	# download (`save` refuses to overwrite, by design).
+	if ($stage | path exists) { rm --recursive $stage }
+	mkdir $stage
+	cd $stage
+
+	for url in $pw.ubuntu_libs {
+		let deb = ($url | path basename)
+		print $"Vendoring Ubuntu library: ($deb)"
+		http get $url | save $"($stage)/($deb)"
+		# A .deb is an `ar` archive; its data member is a zstd-compressed tar
+		# that lays the libraries out under ./usr/lib/x86_64-linux-gnu/.
+		^ar x $deb
+		^tar --extract --file data.tar.zst
+		rm data.tar.zst control.tar.* debian-binary $deb
+	}
+
+	# Copy every extracted shared object (preserving the version symlinks) into
+	# the vendor dir, register it with the loader, and refresh the cache.
+	let so_files = (glob $"($stage)/usr/lib/x86_64-linux-gnu/*.so*")
+	^cp --archive ...$so_files $vendor_dir
+	$"($vendor_dir)\n" | save /etc/ld.so.conf.d/playwright-webkit.conf
+	^ldconfig
+	# Leave the staging dir before removing it (cwd is inside it from the loop).
+	cd /tmp
+	rm --recursive $stage
+	^zypper --non-interactive clean --all
+	print "Playwright libraries installed."
+}
+
+# Pre-download the Playwright browser binaries into the dev user's cache (dev
+# stage, runs as the dev user). They land in ~/.cache/ms-playwright, the default
+# location Playwright reads, so a consuming project that pins the same version
+# finds them already present and skips the runtime download.
+def "main install-playwright-browsers" [] {
+	let config = (open $config_path)
+	let pw = $config.playwright
+	let spec = $"playwright@($pw.version)"
+
+	# `bun x` (not the `bunx` shim, which the bare bun binary download does not
+	# create) runs the pinned Playwright CLI to fetch the browser binaries.
+	print $"Installing Playwright browsers \(($pw.browsers | str join ', ')) via ($spec)"
+	^bun x $spec install ...($pw.browsers)
+	print "Playwright browsers installed."
+}
+
 # Main entry point (shows usage)
 def main [] {
 	print "Usage: setup.nu <subcommand>"
@@ -214,4 +279,6 @@ def main [] {
 	print "  add-user           - Create dev user and configure environment"
 	print "  install-user-tools --variant <base|dev> - Install user-level tools"
 	print "  install-dev-extras - Install only extra dev bun/uv packages"
+	print "  install-playwright-libs     - Install Playwright browser system + vendored libs (root)"
+	print "  install-playwright-browsers - Pre-download Playwright browser binaries (dev user)"
 }
