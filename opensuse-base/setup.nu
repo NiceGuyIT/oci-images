@@ -20,13 +20,26 @@ def "main install-packages" [
 		$config.packages | get $variant
 	}
 
+	# The dev-extras set pulls webkit2gtk3-devel (Dioxus), whose libsoup-devel
+	# dependency requires downgrading libsqlite3-0 (3.53.2 -> 3.51.3) due to Leap
+	# 16.0 repo drift: the base stage's `zypper update` bumps libsqlite3-0 past
+	# the version the dev devel-package closure resolves to. The solver treats a
+	# downgrade as a conflict and presents an interactive solution menu, which
+	# --non-interactive cancels (exit 4). --allow-downgrade lets the solver apply
+	# the downgrade automatically so the closure installs unattended.
+	let install_flags = if $variant == "dev-extras" {
+		["--allow-downgrade"]
+	} else {
+		[]
+	}
+
 	print $"Installing ($variant) packages: ($packages | str join ' ')"
 	^zypper --non-interactive --gpg-auto-import-keys refresh
 	if $variant == "base" {
 		# Only update during base install
 		^zypper --non-interactive update
 	}
-	^zypper --non-interactive install ...($packages)
+	^zypper --non-interactive install ...$install_flags ...($packages)
 	^zypper --non-interactive clean --all
 	print $"($variant) packages installed."
 }
