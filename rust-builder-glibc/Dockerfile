@@ -16,7 +16,7 @@ ARG DEBIAN_VARIANT=trixie
 
 FROM rust:${RUST_VERSION}-slim-${DEBIAN_VARIANT}
 
-ARG DIOXUS_CLI_VERSION=0.7.7
+ARG DIOXUS_CLI_VERSION=0.7.9
 
 # Native packages, alphabetical for diff-friendliness.
 RUN apt-get update && apt-get install --yes --no-install-recommends \
