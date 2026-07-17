@@ -5,7 +5,7 @@
 tacticalrmm:
   url: https://github.com/amidaware/tacticalrmm/releases
   # The "v" prefix is added in build.nu when constructing the GitHub tarball URL.
-  version: 1.4.0
+  version: 1.5.1
 
 components:
   backend:
@@ -20,11 +20,11 @@ components:
   meshcentral:
     image_name: tactical-meshcentral
     base_image: node
-    base_tag: 20-alpine
+    base_tag: 24-alpine
   nats:
     image_name: tactical-nats
     base_image: nats
-    base_tag: 2.12.3-alpine
+    base_tag: 2.14.2-alpine
   nginx:
     image_name: tactical-nginx
     base_image: nginxinc/nginx-unprivileged

@@ -1,6 +1,6 @@
 ARG TRMM_VERSION
 ARG BASE_IMAGE=node
-ARG BASE_TAG=20-alpine
+ARG BASE_TAG=24-alpine
 
 # Stage 1: Fetch upstream Tactical RMM source at the pinned tag.
 FROM alpine:3 AS source

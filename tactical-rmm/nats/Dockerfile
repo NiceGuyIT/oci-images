@@ -1,6 +1,6 @@
 ARG TRMM_VERSION
 ARG BASE_IMAGE=nats
-ARG BASE_TAG=2.12.3-alpine
+ARG BASE_TAG=2.14.2-alpine
 
 # Stage 1: Fetch upstream Tactical RMM source at the pinned tag.
 FROM alpine:3 AS source
