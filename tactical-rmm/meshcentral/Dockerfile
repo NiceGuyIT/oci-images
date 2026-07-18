@@ -31,6 +31,9 @@ COPY --from=source /src/api/tacticalrmm/tacticalrmm/settings.py /tmp/settings.py
 # external MongoDB container dependency.
 COPY entrypoint.sh /entrypoint.sh
 
+# nodemailer is baked in here because MeshCentral npm-installs it on first boot
+# whenever config.json has an "smtp" block (the entrypoint always writes one).
+# Pinning it in package.json moves that slow install into the image build.
 RUN MESH_VER=$(grep -o 'MESH_VER.*' /tmp/settings.py | cut -d'"' -f 2) \
 	&& cat > package.json <<EOF
 {
@@ -38,6 +41,7 @@ RUN MESH_VER=$(grep -o 'MESH_VER.*' /tmp/settings.py | cut -d'"' -f 2) \
     "archiver": "7.0.1",
     "meshcentral": "${MESH_VER}",
     "mongodb": "4.13.0",
+    "nodemailer": "6.10.1",
     "otplib": "10.2.3",
     "pg": "8.7.1",
     "pgtools": "0.3.2",
