@@ -2,11 +2,10 @@
 # Tactical RMM stack.
 #
 # Brings up the five custom images (backend, frontend, meshcentral, nats, nginx)
-# plus the stock postgres and redis dependencies. MeshCentral defaults to its
-# built-in NeDB store (set MESH_POSTGRES_HOST in `.env` to store its data in
-# PostgreSQL instead, as staging and production do), so no MongoDB container is
-# needed. Copy `.env.example` to `.env`, fill in the secrets and host names, then
-# `docker compose up -d`.
+# plus the stock postgres and redis dependencies. MeshCentral stores its data in
+# the shared PostgreSQL server (tactical-postgres); tactical-init provisions the
+# mesh database and role automatically. Copy `.env.example` to `.env`, fill in the
+# secrets and host names, then `docker compose up -d`.
 #
 # IMAGE_REPO defaults to ghcr.io/niceguyit/ (the published location). Set it to
 # an empty string if you have built the images locally with `./build.nu base`
@@ -64,7 +63,7 @@ services:
       SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN}
       MESH_USER: ${MESH_USER}
       MESH_HOST: ${MESH_HOST}
-      MESH_POSTGRES_HOST: ${MESH_POSTGRES_HOST}
+      MESH_POSTGRES_HOST: ${MESH_POSTGRES_HOST:-tactical-postgres}
       MESH_POSTGRES_PORT: ${MESH_POSTGRES_PORT}
       MESH_POSTGRES_USER: ${MESH_POSTGRES_USER}
       MESH_POSTGRES_PASS: ${MESH_POSTGRES_PASS}
@@ -107,7 +106,7 @@ services:
       MESH_USER: ${MESH_USER}
       MESH_PASS: ${MESH_PASS}
       MESH_PERSISTENT_CONFIG: ${MESH_PERSISTENT_CONFIG}
-      MESH_POSTGRES_HOST: ${MESH_POSTGRES_HOST}
+      MESH_POSTGRES_HOST: ${MESH_POSTGRES_HOST:-tactical-postgres}
       MESH_POSTGRES_PORT: ${MESH_POSTGRES_PORT}
       MESH_POSTGRES_USER: ${MESH_POSTGRES_USER}
       MESH_POSTGRES_PASS: ${MESH_POSTGRES_PASS}
