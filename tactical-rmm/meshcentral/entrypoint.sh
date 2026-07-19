@@ -87,8 +87,14 @@ if [ ! -f "/home/node/app/meshcentral-data/config.json" ] || [[ "${MESH_PERSISTE
 EOF
 fi
 
-until pg_isready --host="${MESH_POSTGRES_HOST}" --port="${MESH_POSTGRES_PORT}" --username="${MESH_POSTGRES_USER}" --dbname="${MESH_POSTGRES_DATABASE}" &>/dev/null; do
-  echo "waiting for postgres to accept connections..."
+# Wait until the MeshCentral database is provisioned, not merely until the server
+# answers. tactical-init creates the role, database and password; pg_isready would
+# pass as soon as the server accepts connections (before that provisioning), so the
+# createaccount below would fail with 28P01. A real authenticated SELECT as the mesh
+# role against the mesh database only succeeds once tactical-init has finished, which
+# breaks the init/mesh ordering without a compose dependency cycle.
+until PGPASSWORD="${MESH_POSTGRES_PASS}" psql --host="${MESH_POSTGRES_HOST}" --port="${MESH_POSTGRES_PORT}" --username="${MESH_POSTGRES_USER}" --dbname="${MESH_POSTGRES_DATABASE}" --no-password --tuples-only --command='SELECT 1' &>/dev/null; do
+  echo "waiting for meshcentral database to be provisioned by tactical-init..."
   sleep 5
 done
 
