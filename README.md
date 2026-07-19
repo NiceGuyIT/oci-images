@@ -126,9 +126,9 @@ cd smartctl_exporter && ./build.nu base
 ### Tactical RMM
 
 [Tactical RMM](https://github.com/amidaware/tacticalrmm) is built from the `tactical-rmm/` directory, which packages
-five custom images plus the stock `postgres:13-alpine` and `redis:6.0-alpine` dependencies. MeshCentral defaults to
-its built-in NeDB store (or PostgreSQL when `MESH_POSTGRES_HOST` is set), so no MongoDB container is needed. The
-single shared `tactical-rmm/config.yml` pins the
+five custom images plus the stock `postgres:13-alpine` and `redis:6.0-alpine` dependencies. MeshCentral stores its
+data in the shared PostgreSQL server (`MESH_POSTGRES_HOST` defaults to `tactical-postgres`), which `tactical-init`
+provisions automatically; there is no NeDB or MongoDB option. The single shared `tactical-rmm/config.yml` pins the
 upstream Tactical RMM release; every image downloads the source tarball at that tag during build, so a version bump
 is a single-line change that rebuilds all five images together.
 
@@ -137,7 +137,7 @@ is a single-line change that rebuilds all five images together.
 |------------------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `tactical-backend`     | Django API, Celery worker, Celery beat, Daphne websockets, init container | Single image dispatched by the entrypoint via the first argument (`tactical-init`, `tactical-backend`, `tactical-celery`, `tactical-celerybeat`, `tactical-websockets`). |
 | `tactical-frontend`    | Vue.js bundle on `nginx-unprivileged`                                     | The matching `tacticalrmm-web` release is pulled at build time using the `WEB_VERSION` recorded in upstream `settings.py`.                                               |
-| `tactical-meshcentral` | MeshCentral remote-access server                                          | The MeshCentral version is pulled from the upstream `MESH_VER` constant in `settings.py`. Defaults to the built-in NeDB store under `meshcentral-data` (no MongoDB required); set `MESH_POSTGRES_HOST` to use PostgreSQL, which `tactical-init` provisions automatically. |
+| `tactical-meshcentral` | MeshCentral remote-access server                                          | The MeshCentral version is pulled from the upstream `MESH_VER` constant in `settings.py`. Stores its data in PostgreSQL only (`MESH_POSTGRES_HOST` defaults to `tactical-postgres`), which `tactical-init` provisions automatically; no NeDB or MongoDB. |
 | `tactical-nats`        | NATS server plus the upstream `nats-api` Go binary under `supervisord`    | Multi-arch aware: selects the upstream-shipped `nats-api` (amd64) or `nats-api-arm64` based on `TARGETARCH`.                                                             |
 | `tactical-nginx`       | TLS-terminating reverse proxy                                             | Generates a self-signed wildcard cert at start if `CERT_PUB_KEY` / `CERT_PRIV_KEY` are not provided.                                                                     |
 

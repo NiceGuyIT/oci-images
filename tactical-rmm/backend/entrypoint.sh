@@ -4,33 +4,34 @@
 #
 # The backend image ships the upstream Tactical RMM entrypoint unmodified (copied
 # to /entrypoint-upstream.sh). This wrapper adds one step ahead of it: when the
-# tactical-init command runs and MESH_POSTGRES_HOST is set, it provisions the
-# MeshCentral database and role on the shared PostgreSQL server, then delegates
-# to the upstream entrypoint with the original arguments.
+# tactical-init command runs it provisions the MeshCentral database and role on
+# the shared PostgreSQL server, then delegates to the upstream entrypoint with the
+# original arguments.
 #
-# MeshCentral only creates its own tables inside an existing database; it does
-# not create the database or the login role. On a bare-metal install the upstream
-# install.sh provisions them with psql; in the container stack there is no such
-# step, so tactical-init does it here. Provisioning happens before the upstream
-# entrypoint waits for MeshCentral, so the mesh container (restart: always) can
-# connect as soon as the database exists.
+# PostgreSQL is the only MeshCentral data store in these images. MeshCentral only
+# creates its own tables inside an existing database; it does not create the
+# database or the login role. On a bare-metal install the upstream install.sh
+# provisions them with psql; in the container stack there is no such step, so
+# tactical-init does it here. Provisioning happens before the upstream entrypoint
+# waits for MeshCentral, so the mesh container (restart: always) can connect as
+# soon as the database exists.
 #
-# The mesh database is assumed to live on the same PostgreSQL server as the
-# tacticalrmm database, administered by POSTGRES_USER/POSTGRES_PASS. When
-# MESH_POSTGRES_HOST is empty (the default) MeshCentral uses its built-in NeDB
-# store and this step is skipped.
+# The mesh database lives on the same PostgreSQL server as the tacticalrmm
+# database, administered by POSTGRES_USER/POSTGRES_PASS. MESH_POSTGRES_HOST
+# defaults to POSTGRES_HOST (tactical-postgres), matching the tacticalrmm DB host.
 
 set -e
 
 : "${POSTGRES_USER:=tactical}"
 : "${POSTGRES_PASS:=tactical}"
-: "${MESH_POSTGRES_HOST:=}"
+: "${POSTGRES_HOST:=tactical-postgres}"
+: "${MESH_POSTGRES_HOST:=${POSTGRES_HOST}}"
 : "${MESH_POSTGRES_PORT:=5432}"
 : "${MESH_POSTGRES_USER:=meshcentral}"
 : "${MESH_POSTGRES_PASS:=}"
 : "${MESH_POSTGRES_DATABASE:=meshcentral}"
 
-if [ "$1" = 'tactical-init' ] && [ -n "${MESH_POSTGRES_HOST}" ]; then
+if [ "$1" = 'tactical-init' ]; then
   echo "Provisioning MeshCentral PostgreSQL database on ${MESH_POSTGRES_HOST}:${MESH_POSTGRES_PORT}..."
 
   until (echo >/dev/tcp/"${MESH_POSTGRES_HOST}"/"${MESH_POSTGRES_PORT}") &>/dev/null; do

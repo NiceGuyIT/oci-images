@@ -3,15 +3,10 @@
 # MeshCentral entrypoint for Tactical RMM.
 #
 # Adapted from the upstream tactical-meshcentral entrypoint with the MongoDB
-# back end replaced by PostgreSQL. The data store is selected at runtime:
-#
-#   - MESH_POSTGRES_HOST unset/empty (the default): no database block is written,
-#     so MeshCentral falls back to its built-in NeDB store under
-#     /home/node/app/meshcentral-data/. This is the zero-dependency layout used
-#     by the Docker Compose example, so no external database container is needed.
-#   - MESH_POSTGRES_HOST set: a "postgres" block is written under settings,
-#     matching the PostgreSQL layout the upstream install.sh provisions. Used by
-#     staging and production.
+# back end replaced by PostgreSQL. PostgreSQL is the only data store: a "postgres"
+# block is always written under settings, matching the layout the upstream
+# install.sh provisions. MESH_POSTGRES_HOST defaults to tactical-postgres, the
+# same PostgreSQL server as the tacticalrmm database.
 
 set -e
 
@@ -29,35 +24,23 @@ set -e
 : "${SMTP_USER:=mesh@example.com}"
 : "${SMTP_PASS:=mesh-smtp-pass}"
 : "${SMTP_TLS:=false}"
-: "${MESH_POSTGRES_HOST:=}"
+: "${MESH_POSTGRES_HOST:=tactical-postgres}"
 : "${MESH_POSTGRES_PORT:=5432}"
 : "${MESH_POSTGRES_USER:=meshcentral}"
 : "${MESH_POSTGRES_PASS:=}"
 : "${MESH_POSTGRES_DATABASE:=meshcentral}"
 
-# When MESH_POSTGRES_HOST is set, emit a "postgres" settings block so MeshCentral
-# stores its data in PostgreSQL. Left empty, MeshCentral uses its built-in NeDB
-# store. The block is placed as the first key in "settings" so its trailing comma
-# stays valid regardless of the keys that follow.
-mesh_db_settings=""
-if [ -n "${MESH_POSTGRES_HOST}" ]; then
-  mesh_db_settings=$(cat <<EOF
-"postgres": {
+if [ ! -f "/home/node/app/meshcentral-data/config.json" ] || [[ "${MESH_PERSISTENT_CONFIG}" -eq 0 ]]; then
+  cat >/home/node/app/meshcentral-data/config.json <<EOF
+{
+  "settings": {
+    "postgres": {
       "user": "${MESH_POSTGRES_USER}",
       "password": "${MESH_POSTGRES_PASS}",
       "host": "${MESH_POSTGRES_HOST}",
       "port": "${MESH_POSTGRES_PORT}",
       "database": "${MESH_POSTGRES_DATABASE}"
     },
-EOF
-)
-fi
-
-if [ ! -f "/home/node/app/meshcentral-data/config.json" ] || [[ "${MESH_PERSISTENT_CONFIG}" -eq 0 ]]; then
-  cat >/home/node/app/meshcentral-data/config.json <<EOF
-{
-  "settings": {
-    ${mesh_db_settings}
     "cert": "${MESH_HOST}",
     "tlsOffload": "${NGINX_HOST_IP}",
     "redirPort": 8080,

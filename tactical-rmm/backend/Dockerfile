@@ -56,7 +56,7 @@ COPY --from=scripts /community-scripts ${TACTICAL_TMP_DIR}/community-scripts
 COPY --from=venv ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 # The upstream entrypoint is kept unmodified. entrypoint.sh is a thin local
 # wrapper that provisions the MeshCentral PostgreSQL database during tactical-init
-# (when MESH_POSTGRES_HOST is set) and then execs the upstream entrypoint.
+# and then execs the upstream entrypoint.
 COPY --from=source /src/docker/containers/tactical/entrypoint.sh /entrypoint-upstream.sh
 COPY entrypoint.sh /entrypoint.sh
 
