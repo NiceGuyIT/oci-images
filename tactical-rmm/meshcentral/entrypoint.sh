@@ -87,6 +87,11 @@ if [ ! -f "/home/node/app/meshcentral-data/config.json" ] || [[ "${MESH_PERSISTE
 EOF
 fi
 
+until pg_isready --host="${MESH_POSTGRES_HOST}" --port="${MESH_POSTGRES_PORT}" --username="${MESH_POSTGRES_USER}" --dbname="${MESH_POSTGRES_DATABASE}" &>/dev/null; do
+  echo "waiting for postgres to accept connections..."
+  sleep 5
+done
+
 node node_modules/meshcentral --createaccount "${MESH_USER}" --pass "${MESH_PASS}" --email example@example.com
 node node_modules/meshcentral --adminaccount "${MESH_USER}"
 

@@ -20,7 +20,11 @@ WORKDIR /home/node/app
 
 ENV TACTICAL_DIR=/opt/tactical
 
-RUN apk add --no-cache bash
+# postgresql-client supplies pg_dump (MeshCentral's startup auto-backup shells
+# out to it; without it the backup errors and trips an upstream crash bug) and
+# pg_isready (the entrypoint waits on it before creating accounts, so the mesh
+# server never races an unready PostgreSQL).
+RUN apk add --no-cache bash postgresql-client
 
 SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
@@ -31,9 +35,13 @@ COPY --from=source /src/api/tacticalrmm/tacticalrmm/settings.py /tmp/settings.py
 # defaults to tactical-postgres, the same server as the tacticalrmm database.
 COPY entrypoint.sh /entrypoint.sh
 
-# nodemailer is baked in here because MeshCentral npm-installs it on first boot
-# whenever config.json has an "smtp" block (the entrypoint always writes one).
-# Pinning it in package.json moves that slow install into the image build.
+# nodemailer and pg are baked in here because MeshCentral npm-installs its
+# required modules on first boot whenever a matching version is not already
+# present: nodemailer whenever config.json has an "smtp" block, and pg whenever
+# a "postgres" block is present (the entrypoint always writes both). pg must be
+# pinned to the EXACT version MeshCentral requires (8.16.3 for MeshCentral
+# v1.2.0); a mismatched pin still triggers the boot-time reinstall. Pinning the
+# right versions moves that slow install into the image build.
 RUN MESH_VER=$(grep -o 'MESH_VER.*' /tmp/settings.py | cut -d'"' -f 2) \
 	&& cat > package.json <<EOF
 {
@@ -42,7 +50,7 @@ RUN MESH_VER=$(grep -o 'MESH_VER.*' /tmp/settings.py | cut -d'"' -f 2) \
     "meshcentral": "${MESH_VER}",
     "nodemailer": "6.10.1",
     "otplib": "10.2.3",
-    "pg": "8.7.1",
+    "pg": "8.16.3",
     "pgtools": "0.3.2",
     "saslprep": "1.0.3"
   }
