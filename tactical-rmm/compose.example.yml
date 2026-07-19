@@ -73,9 +73,12 @@ services:
       TRMM_DISABLE_WEB_TERMINAL: ${TRMM_DISABLE_WEB_TERMINAL}
       TRMM_DISABLE_SERVER_SCRIPTS: ${TRMM_DISABLE_SERVER_SCRIPTS}
       TRMM_DISABLE_SSO: ${TRMM_DISABLE_SSO}
+    # tactical-init provisions the MeshCentral role/database before mesh needs it,
+    # so it must NOT depend on tactical-meshcentral (that ordering, plus mesh needing
+    # the provisioned database, is the chicken-and-egg deadlock). init depends only
+    # on the datastores; mesh waits for init's provisioning in its own entrypoint.
     depends_on:
       - tactical-postgres
-      - tactical-meshcentral
       - tactical-redis
     volumes:
       - tactical-data:/opt/tactical
@@ -112,6 +115,13 @@ services:
       MESH_POSTGRES_PASS: ${MESH_POSTGRES_PASS}
       MESH_POSTGRES_DATABASE: ${MESH_POSTGRES_DATABASE}
       NGINX_HOST_IP: tactical-nginx
+    # Start after tactical-init so its database provisioning is already under way.
+    # Completion is not required here (init later waits on mesh for the login token,
+    # so a service_completed_successfully condition would re-introduce the deadlock);
+    # the mesh entrypoint waits for the provisioned database itself.
+    depends_on:
+      - tactical-postgres
+      - tactical-init
     volumes:
       - tactical-data:/opt/tactical
       - tactical-meshcentral-data:/home/node/app/meshcentral-data
