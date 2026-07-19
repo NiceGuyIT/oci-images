@@ -25,10 +25,11 @@ RUN apk add --no-cache bash
 SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
 COPY --from=source /src/api/tacticalrmm/tacticalrmm/settings.py /tmp/settings.py
-# Local entrypoint replaces the upstream MongoDB-based one. Omitting the
-# "mongodb" key from the generated config makes MeshCentral fall back to its
-# built-in NeDB store under /home/node/app/meshcentral-data, removing the
-# external MongoDB container dependency.
+# Local entrypoint replaces the upstream MongoDB-based one with PostgreSQL. It
+# writes a "postgres" config block when MESH_POSTGRES_HOST is set (staging and
+# production); otherwise MeshCentral falls back to its built-in NeDB store under
+# /home/node/app/meshcentral-data (the Docker Compose default). The MongoDB
+# container dependency is removed either way.
 COPY entrypoint.sh /entrypoint.sh
 
 # nodemailer is baked in here because MeshCentral npm-installs it on first boot
