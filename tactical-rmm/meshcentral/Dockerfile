@@ -1,6 +1,10 @@
 ARG TRMM_VERSION
 ARG BASE_IMAGE=node
 ARG BASE_TAG=24-alpine
+# Bun replaces npm as the build-time package manager (faster installs). The
+# alpine (musl) variant matches the node:*-alpine runtime base.
+ARG BUN_IMAGE=oven/bun
+ARG BUN_TAG=1-alpine
 
 # Stage 1: Fetch upstream Tactical RMM source at the pinned tag.
 FROM alpine:3 AS source
@@ -12,7 +16,10 @@ RUN apk add --no-cache curl tar \
 	&& curl -fsSL "https://github.com/amidaware/tacticalrmm/archive/refs/tags/v${TRMM_VERSION}.tar.gz" \
 		| tar -xz -C /src --strip-components=1
 
-# Stage 2: Runtime image. Installs MeshCentral at the version recorded in
+# Stage 2: Provide the bun binary for the build-time install below.
+FROM ${BUN_IMAGE}:${BUN_TAG} AS bun
+
+# Stage 3: Runtime image. Installs MeshCentral at the version recorded in
 # upstream settings.py so the mesh server matches the backend's expectations.
 FROM ${BASE_IMAGE}:${BASE_TAG}
 
@@ -34,6 +41,9 @@ COPY --from=source /src/api/tacticalrmm/tacticalrmm/settings.py /tmp/settings.py
 # data store in these images (no NeDB fallback, no MongoDB). MESH_POSTGRES_HOST
 # defaults to tactical-postgres, the same server as the tacticalrmm database.
 COPY entrypoint.sh /entrypoint.sh
+# Bun binary for the install below. node:*-alpine already ships libstdc++, which
+# is bun's only shared-library dependency on musl.
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 
 # nodemailer and pg are baked in here because MeshCentral npm-installs its
 # required modules on first boot whenever a matching version is not already
@@ -57,7 +67,7 @@ RUN MESH_VER=$(grep -o 'MESH_VER.*' /tmp/settings.py | cut -d'"' -f 2) \
 }
 EOF
 
-RUN npm install \
+RUN bun install \
 	&& chmod +x /entrypoint.sh \
 	&& chown -R node:node /home/node
 
