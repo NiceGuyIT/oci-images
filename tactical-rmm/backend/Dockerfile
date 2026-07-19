@@ -54,7 +54,11 @@ SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 COPY --from=source /src/api/tacticalrmm ${TACTICAL_TMP_DIR}/api
 COPY --from=scripts /community-scripts ${TACTICAL_TMP_DIR}/community-scripts
 COPY --from=venv ${VIRTUAL_ENV} ${VIRTUAL_ENV}
-COPY --from=source /src/docker/containers/tactical/entrypoint.sh /entrypoint.sh
+# The upstream entrypoint is kept unmodified. entrypoint.sh is a thin local
+# wrapper that provisions the MeshCentral PostgreSQL database during tactical-init
+# (when MESH_POSTGRES_HOST is set) and then execs the upstream entrypoint.
+COPY --from=source /src/docker/containers/tactical/entrypoint.sh /entrypoint-upstream.sh
+COPY entrypoint.sh /entrypoint.sh
 
 RUN apt-get update \
 	&& apt-get upgrade -y \
@@ -62,7 +66,7 @@ RUN apt-get update \
 	&& rm -rf /var/lib/apt/lists/* \
 	&& groupadd -g 1000 "${TACTICAL_USER}" \
 	&& useradd -M -d "${TACTICAL_DIR}" -s /bin/bash -u 1000 -g 1000 "${TACTICAL_USER}" \
-	&& chmod +x /entrypoint.sh
+	&& chmod +x /entrypoint.sh /entrypoint-upstream.sh
 
 WORKDIR ${TACTICAL_DIR}/api
 
