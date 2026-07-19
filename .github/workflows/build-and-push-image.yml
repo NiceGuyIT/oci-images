@@ -84,14 +84,38 @@ jobs:
           let image = $env.BUILD_IMAGE
           let tags = ($env.BUILD_TAGS | split row ' ')
 
+          # GHCR intermittently returns "unknown blob" (registry BLOB_UNKNOWN)
+          # during a push; a retry clears it. Without retries a transient blob
+          # error fails the job and silently leaves stale content under the
+          # mutable version tag, so a changed image never actually publishes.
+          let max_attempts = 5
+
           mut registry_paths = []
           for tag in $tags {
             let local_tag = $"($image):($tag)"
             let remote_tag = $"($env.IMAGE_REGISTRY)/($image):($tag)"
             print $"Tagging ($local_tag) as ($remote_tag)"
             ^docker tag $local_tag $remote_tag
-            print $"Pushing ($remote_tag)"
-            ^docker push $remote_tag
+
+            mut attempt = 1
+            mut pushed = false
+            while (not $pushed) {
+              print $"Pushing ($remote_tag) - attempt ($attempt) of ($max_attempts)"
+              let result = (^docker push $remote_tag | complete)
+              print $result.stdout
+              print $result.stderr
+              if $result.exit_code == 0 {
+                $pushed = true
+              } else if $attempt >= $max_attempts {
+                error make {msg: $"Failed to push ($remote_tag) after ($max_attempts) attempts, last exit code ($result.exit_code)"}
+              } else {
+                let backoff = ($attempt * 10)
+                print $"Push failed with exit code ($result.exit_code); retrying in ($backoff)s..."
+                sleep ($backoff * 1sec)
+                $attempt = ($attempt + 1)
+              }
+            }
+
             $registry_paths = ($registry_paths | append $remote_tag)
           }
 
