@@ -2,7 +2,7 @@
 ARG OPENSUSE_VERSION=16.0
 FROM docker.io/opensuse/leap:${OPENSUSE_VERSION} AS base
 
-ARG NU_VERSION=0.101.0
+ARG NU_VERSION=0.112.2
 ARG BINARIES_HOST=dufs.niceguyit.biz
 
 # Bootstrap Nushell (needed to run setup.nu)
