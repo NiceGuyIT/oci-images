@@ -10,6 +10,14 @@ on:
       - ".github/workflows/build-smartctl.yml"
       - ".github/workflows/build-and-push-image.yml"
 
+# One run per workflow per ref: a newer push supersedes an in-flight build of the
+# same image, since both would publish the same tags. Not set in
+# build-and-push-image.yml, because sibling jobs there (opensuse base/dev,
+# the five tactical-rmm components) share a caller and would cancel each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build smartctl_exporter image
