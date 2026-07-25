@@ -12,29 +12,22 @@ on:
 
 # One run per workflow per ref: a newer push supersedes an in-flight build of the
 # same image, since both would publish the same tags. Not set in
-# build-and-push-image.yml, because sibling jobs there (opensuse base/dev,
-# the five tactical-rmm components) share a caller and would cancel each other.
+# build-and-push-image.yml, because sibling jobs there (the five tactical-rmm
+# components) share a caller and would cancel each other.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-base:
-    name: Build openSUSE base image
+  # base and dev build in one job, in that order. The dev stage is `FROM base`, so
+  # a second runner would rebuild every base layer and re-download the same ~700MB
+  # of binaries; here dev reuses the layers base just built.
+  build:
+    name: Build openSUSE images
     uses: ./.github/workflows/build-and-push-image.yml
     permissions:
       contents: read
       packages: write
     with:
       image-name: opensuse-base
-      image-type: base
-
-  build-dev:
-    name: Build openSUSE dev image
-    uses: ./.github/workflows/build-and-push-image.yml
-    permissions:
-      contents: read
-      packages: write
-    with:
-      image-name: opensuse-base
-      image-type: dev
+      image-type: base dev
