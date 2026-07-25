@@ -90,8 +90,10 @@ Everywhere else `main` is declared with no parameters, so passing one fails with
 GitHub Actions workflows in `.github/workflows/`:
 
 - `build-and-push-image.yml` - Reusable workflow template (uses `docker/setup-buildx-action`, `docker/login-action`, Nushell)
+- `image-type` accepts several space-separated variants (`base dev`), built in order on one runner so a stage that is `FROM` an earlier one reuses its layers. Each `build.nu` run gets a private output file and the step emits one `builds` JSON output, since duplicate `image=` keys in `GITHUB_OUTPUT` would keep only the last variant
 - Individual workflows trigger on push to image directories or template changes
-- Builds run on Ubuntu 24.04 with Nushell 0.101.0
+- Each caller workflow sets `concurrency` on workflow plus ref, so a newer push supersedes an in-flight build; it is not set in the reusable workflow, where sibling jobs share a caller and would cancel each other
+- Builds run on Ubuntu 24.04 with Nushell 0.112.2, matching the `nu` version pinned in `opensuse-base/config.yml`
 - Build step uses `--load` to load images locally; push step tags and pushes to GHCR
 - Output written to `GITHUB_OUTPUT` (or `output.log` locally)
 
