@@ -40,7 +40,9 @@ COPY --from=source /src/api/tacticalrmm/tacticalrmm/settings.py /tmp/settings.py
 # always writes a "postgres" config block; PostgreSQL is the only MeshCentral
 # data store in these images (no NeDB fallback, no MongoDB). MESH_POSTGRES_HOST
 # defaults to tactical-postgres, the same server as the tacticalrmm database.
-COPY entrypoint.sh /entrypoint.sh
+# --chmod pins the mode: without it a 0600 host checkout yields 0700 after the
+# chmod +x below, which USER node cannot execute.
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 # Bun binary for the install below. node:*-alpine already ships libstdc++, which
 # is bun's only shared-library dependency on musl.
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun

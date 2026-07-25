@@ -69,7 +69,7 @@ COPY --from=venv ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 # wrapper that provisions the MeshCentral PostgreSQL database during tactical-init
 # and then execs the upstream entrypoint.
 COPY --from=source /src/docker/containers/tactical/entrypoint.sh /entrypoint-upstream.sh
-COPY entrypoint.sh /entrypoint.sh
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 RUN apt-get update \
 	&& apt-get upgrade -y \
