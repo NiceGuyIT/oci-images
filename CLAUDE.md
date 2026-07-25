@@ -17,14 +17,22 @@ OCI Images is a container image build system for creating and publishing OCI-com
 Each image has its own directory with `Dockerfile`, `build.nu`, and `config.yml`:
 
 ```bash
-# openSUSE base images (supports base and dev variants)
+# openSUSE images: the only build.nu that takes a variant argument
 cd opensuse-base && ./build.nu base
 cd opensuse-base && ./build.nu dev
 
-# Other images (base variant only)
-cd wordpress && ./build.nu base
-cd smartctl_exporter && ./build.nu base
-cd frankenphp-wordpress && ./build.nu base
+# Tactical RMM: optional component argument, omit it to build all five
+cd tactical-rmm && ./build.nu backend
+cd tactical-rmm && ./build.nu
+
+# Every other image takes no argument
+cd coredns && ./build.nu
+cd frankenphp-wordpress && ./build.nu
+cd rust-builder-glibc && ./build.nu
+cd rust-builder-glibc-windows && ./build.nu
+cd rust-builder-musl && ./build.nu
+cd smartctl_exporter && ./build.nu
+cd wordpress && ./build.nu
 ```
 
 ### Build Architecture
@@ -38,28 +46,49 @@ cd frankenphp-wordpress && ./build.nu base
 
 ```
 oci-images/
-├── opensuse-base/          # openSUSE Leap 16.0 dev environment (multi-target: base/dev)
-│   ├── Dockerfile          # Multi-target Dockerfile (--target base or --target dev)
-│   ├── build.nu            # Orchestrator with semver tag computation
-│   ├── setup.nu            # Runs inside container: binary downloads, user setup, tool install
-│   └── config.yml
-├── wordpress/              # PHP/WordPress with Redis, Xdebug
-│   ├── Dockerfile          # Conditional xdebug install via build arg
-│   ├── build.nu
-│   └── config.yml
-├── smartctl_exporter/      # Prometheus S.M.A.R.T. exporter
+├── coredns/                    # CoreDNS built from source with the alias plugin
 │   ├── Dockerfile
 │   ├── build.nu
 │   └── config.yml
-└── frankenphp-wordpress/   # FrankenPHP + WordPress + Caddy
-    ├── Dockerfile          # Multi-stage: caddy-builder, frankenphp-builder, runtime
+├── frankenphp-wordpress/       # FrankenPHP + WordPress + Caddy
+│   ├── Dockerfile              # Multi-stage: builder, wordpress, runtime
+│   ├── build.nu
+│   └── config.yml
+├── opensuse-base/              # openSUSE Leap 16.0 dev environment (multi-target: base/dev)
+│   ├── Dockerfile              # Multi-target Dockerfile (--target base or --target dev)
+│   ├── build.nu                # Orchestrator with semver tag computation
+│   ├── setup.nu                # Runs inside container: binary downloads, user setup, tool install
+│   └── config.yml
+├── rust-builder-glibc/         # Rust toolchain on Debian trixie (glibc build deps)
+├── rust-builder-glibc-windows/ # Rust + mingw-w64 cross toolchain for *-pc-windows-gnu
+├── rust-builder-musl/          # Rust toolchain on Alpine (musl build deps)
+├── smartctl_exporter/          # Prometheus S.M.A.R.T. exporter, repackaged to run as nobody
+│   ├── Dockerfile
+│   ├── build.nu
+│   └── config.yml
+├── tactical-rmm/               # Five images from one shared config.yml and build.nu
+│   ├── backend/Dockerfile      # Django API, Celery, Daphne, init; dispatched by first arg
+│   ├── frontend/Dockerfile     # Vue.js bundle on nginx-unprivileged
+│   ├── meshcentral/Dockerfile  # MeshCentral, PostgreSQL-backed
+│   ├── nats/Dockerfile
+│   ├── nginx/Dockerfile
+│   ├── build.nu                # Optional component arg; omit to build all five
+│   └── config.yml              # One TRMM_VERSION drives every component
+└── wordpress/                  # PHP/WordPress with Redis, Xdebug
+    ├── Dockerfile              # Conditional xdebug install via build arg
     ├── build.nu
     └── config.yml
 ```
 
+Each `rust-builder-*` directory has the same `Dockerfile` / `build.nu` / `config.yml` layout.
+
+`build.nu` takes an argument only in `opensuse-base` (`base` / `dev`) and `tactical-rmm` (component name, optional).
+Everywhere else `main` is declared with no parameters, so passing one fails with `nu::parser::extra_positional`.
+
 ## CI/CD
 
 GitHub Actions workflows in `.github/workflows/`:
+
 - `build-and-push-image.yml` - Reusable workflow template (uses `docker/setup-buildx-action`, `docker/login-action`, Nushell)
 - Individual workflows trigger on push to image directories or template changes
 - Builds run on Ubuntu 24.04 with Nushell 0.101.0
@@ -72,7 +101,16 @@ GitHub Actions workflows in `.github/workflows/`:
 
 ## Code Style
 
-- **Formatter:** Prettier
+- **Formatter:** Prettier, configured in `.prettierrc.json`
 - **Indentation:** Tabs (4 spaces width), except YAML (2 spaces)
 - **Line length:** 120 characters
-- **Spell check:** cspell with custom dictionary for container terms
+- **Spell check:** cspell, configured in `cspell.json` with a project dictionary of container terms
+
+Both tools ship inside the `opensuse-base` image (installed via bun), so run them there rather than
+installing them on the host:
+
+```bash
+docker run --rm --user dev --volume "$PWD:/work:ro" --workdir /work \
+	--entrypoint bash ghcr.io/niceguyit/opensuse-base:latest --login -c \
+	'prettier --check "**/*.{md,yml,yaml,json}" && cspell --no-progress $(git ls-files)'
+```

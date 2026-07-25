@@ -85,8 +85,8 @@ bun:
     - corepack
   # base bun packages are installed in the base stage; list only extras here.
   dev:
-    - '@anthropic-ai/claude-code'
-    - '@tailwindcss/cli'
+    - "@anthropic-ai/claude-code"
+    - "@tailwindcss/cli"
 
 uv:
   base:

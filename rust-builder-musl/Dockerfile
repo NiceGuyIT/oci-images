@@ -1,7 +1,7 @@
 # Kitchen-sink musl/alpine Rust builder. Covers every alpine-based Rust
 # service in the org: REST APIs (axum), CLIs, sqlx-postgres / sqlx-sqlite,
 # dev-environment containers running cargo-watch, and the storefront video
-# transcoder. No Dioxus / bun / GTK: those need glibc — see rust-builder-glibc.
+# transcoder. No Dioxus / bun / GTK: those need glibc - see rust-builder-glibc.
 #
 # Tag suffix:
 #   rust-builder-musl:v1.0.0-rust1.94-alpine

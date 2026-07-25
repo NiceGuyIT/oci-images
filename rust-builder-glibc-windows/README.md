@@ -20,7 +20,7 @@ The only practical fix is to **vendor** OpenSSL: the `openssl` crate's `vendored
 
 ### Cause 2: the HOST also needs OpenSSL
 
-When cross-compiling, build scripts run on the build host (linux). If any dependency *build-script* links a git crate, an `openssl-sys` instance is compiled for the host too. For example `ssh2-config` has an unconditional `[build-dependencies] git2`, which drags `libgit2-sys` -> `openssl-sys` into the host graph. That host `openssl-sys` looks for a system OpenSSL and fails with the same "Could not find directory of OpenSSL installation" message but with `$TARGET = x86_64-unknown-linux-gnu`.
+When cross-compiling, build scripts run on the build host (linux). If any dependency _build-script_ links a git crate, an `openssl-sys` instance is compiled for the host too. For example `ssh2-config` has an unconditional `[build-dependencies] git2`, which drags `libgit2-sys` -> `openssl-sys` into the host graph. That host `openssl-sys` looks for a system OpenSSL and fails with the same "Could not find directory of OpenSSL installation" message but with `$TARGET = x86_64-unknown-linux-gnu`.
 
 Consumer-side `cfg(windows)` vendoring does **not** fix this one: build-dependencies compile for the host and use a separate feature set, so the host `openssl-sys` stays unvendored. The fix is to provide a host OpenSSL, i.e. `libssl-dev`.
 
