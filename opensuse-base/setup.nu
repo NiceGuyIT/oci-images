@@ -56,6 +56,9 @@ def "main install-binaries" [] {
 	| where {|it| ($it.file? | default $it.name) != "nu" }
 	| par-each --threads 4 {|it|
 		let filename = ($it.file? | default $it.name)
+		# Some tools are published under their package name (forgejo-cli); `bin` installs them
+		# under their command name (fj) instead of the remote filename.
+		let install_name = ($it.bin? | default $filename)
 		let url = (
 			{
 				"scheme": "https"
@@ -72,9 +75,9 @@ def "main install-binaries" [] {
 				)
 			} | url join
 		)
-		print $"  Installing binary: '($filename)' from ($url)"
-		http get $url | save $"($bin_path)/($filename)"
-		chmod a+rx $"($bin_path)/($filename)"
+		print $"  Installing binary: '($install_name)' from ($url)"
+		http get $url | save $"($bin_path)/($install_name)"
+		chmod a+rx $"($bin_path)/($install_name)"
 	}
 	print "Binaries installed."
 }
