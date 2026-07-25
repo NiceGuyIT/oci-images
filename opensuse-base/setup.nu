@@ -6,6 +6,28 @@
 const config_path = '/tmp/build/config.yml'
 const bin_path = '/usr/local/bin'
 
+# Retry a closure with linear backoff. This build makes 30+ network fetches and
+# `http get` has no retry of its own, so one blip would abort the whole image.
+def retry [
+	label: string			# What is being attempted, named in the log line
+	--attempts: int = 3		# Total tries before giving up
+	action: closure
+] {
+	mut attempt = 1
+	loop {
+		let outcome = (try { {ok: true, value: (do $action)} } catch {|err| {ok: false, msg: $err.msg}})
+		if $outcome.ok {
+			return $outcome.value
+		}
+		if $attempt >= $attempts {
+			error make {msg: $"($label) failed after ($attempts) attempts: ($outcome.msg)"}
+		}
+		print $"  ($label) failed \(attempt ($attempt)/($attempts)), retrying: ($outcome.msg)"
+		sleep (2sec * $attempt)
+		$attempt += 1
+	}
+}
+
 # Install system packages via zypper
 def "main install-packages" [
 	--variant: string		# Variant: base or dev-extras
@@ -76,7 +98,9 @@ def "main install-binaries" [] {
 			} | url join
 		)
 		print $"  Installing binary: '($install_name)' from ($url)"
-		http get $url | save $"($bin_path)/($install_name)"
+		# Fetch fully before writing, so a retry never sees a partial file.
+		let payload = (retry $"download ($install_name)" { http get --max-time 5min $url })
+		$payload | save $"($bin_path)/($install_name)"
 		chmod a+rx $"($bin_path)/($install_name)"
 	}
 	print "Binaries installed."
@@ -126,8 +150,13 @@ def "main add-user" [] {
 	mkdir $"/home/($container_user)/.config/chezmoi"
 	mkdir $"/home/($container_user)/.bun"
 
-	# Clone dotfiles
-	^git clone --depth 1 $config.dotfiles.repo $"/home/($container_user)/projects/dotfiles"
+	# Clone dotfiles. A failed clone leaves the target dir behind, so remove it
+	# before retrying (git refuses to clone into a non-empty directory).
+	let dotfiles_dir = $"/home/($container_user)/projects/dotfiles"
+	retry "clone dotfiles" {
+		if ($dotfiles_dir | path exists) { rm --recursive $dotfiles_dir }
+		^git clone --depth 1 $config.dotfiles.repo $dotfiles_dir
+	}
 
 	# Write chezmoi config
 	$chezmoi_config | save $"/home/($container_user)/.config/chezmoi/chezmoi.jsonc"
@@ -170,7 +199,7 @@ def "main install-user-tools" [
 	# Install Rust via rustup
 	let rustup = '/tmp/rustup.sh'
 	let rustup_url = 'https://sh.rustup.rs'
-	http get $rustup_url | save $rustup
+	retry "download rustup" { http get --max-time 2min $rustup_url } | save $rustup
 	if ($rustup | path exists) {
 		print $"Downloaded rustup. Installing Rust ($rust_version)..."
 		chmod a+x $rustup
@@ -250,7 +279,7 @@ def "main install-playwright-libs" [] {
 	for url in $pw.ubuntu_libs {
 		let deb = ($url | path basename)
 		print $"Vendoring Ubuntu library: ($deb)"
-		http get $url | save $"($stage)/($deb)"
+		retry $"download ($deb)" { http get --max-time 5min $url } | save $"($stage)/($deb)"
 		# A .deb is an `ar` archive; its data member is a zstd-compressed tar
 		# that lays the libraries out under ./usr/lib/x86_64-linux-gnu/.
 		^ar x $deb

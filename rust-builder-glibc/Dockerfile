@@ -65,7 +65,7 @@ RUN rustup component add clippy rustfmt \
     && rustup target add wasm32-unknown-unknown
 
 # cargo-binstall (pre-built binary, GNU variant for glibc).
-RUN curl --location --silent --show-error \
+RUN curl --location --silent --show-error --retry 3 --retry-delay 2 --retry-connrefused \
         https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-gnu.tgz \
     | tar --extract --gzip --directory /usr/local/cargo/bin
 
@@ -74,7 +74,7 @@ RUN curl --location --silent --show-error \
 # PATH, and reachable by non-root consumers without traversing /root (mode 700).
 # `bunx` ships in the release zip rather than being created by the installer, so
 # smoke-test both: fail the build if upstream ever stops shipping bunx.
-RUN curl --fail --location --silent --show-error https://bun.sh/install | env BUN_INSTALL=/usr/local bash \
+RUN curl --fail --location --silent --show-error --retry 3 --retry-delay 2 --retry-connrefused https://bun.sh/install | env BUN_INSTALL=/usr/local bash \
     && bun --version \
     && bunx --version
 

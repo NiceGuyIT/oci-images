@@ -13,7 +13,7 @@ ARG TRMM_VERSION
 
 RUN apk add --no-cache curl tar \
 	&& mkdir /src \
-	&& curl -fsSL "https://github.com/amidaware/tacticalrmm/archive/refs/tags/v${TRMM_VERSION}.tar.gz" \
+	&& curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused "https://github.com/amidaware/tacticalrmm/archive/refs/tags/v${TRMM_VERSION}.tar.gz" \
 		| tar -xz -C /src --strip-components=1
 
 # Provide the uv binary for the venv build below.
@@ -47,8 +47,11 @@ RUN python3 -m venv ${VIRTUAL_ENV} \
 # Stage 3: Fetch the community-scripts repository.
 FROM alpine:3 AS scripts
 
+# Retried once against a transient clone failure; the partial target is removed first.
 RUN apk add --no-cache git \
-	&& git clone --depth 1 https://github.com/amidaware/community-scripts.git /community-scripts
+	&& (git clone --depth 1 https://github.com/amidaware/community-scripts.git /community-scripts \
+		|| ([ -e /community-scripts ] && rm -r /community-scripts; \
+			git clone --depth 1 https://github.com/amidaware/community-scripts.git /community-scripts))
 
 # Stage 4: Runtime image.
 FROM ${BASE_IMAGE}:${BASE_TAG}

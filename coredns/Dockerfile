@@ -11,7 +11,11 @@ RUN apk add --no-cache git make
 WORKDIR /src
 
 # Clone CoreDNS source at the specified version
-RUN git clone --branch ${COREDNS_VERSION} --depth 1 https://github.com/coredns/coredns.git .
+# Retried once: a transient clone failure would otherwise abort the build. The dir is
+# emptied first because git refuses to clone into a non-empty directory.
+RUN git clone --branch ${COREDNS_VERSION} --depth 1 https://github.com/coredns/coredns.git . \
+	|| (find . -mindepth 1 -delete \
+		&& git clone --branch ${COREDNS_VERSION} --depth 1 https://github.com/coredns/coredns.git .)
 
 # Insert the alias plugin into plugin.cfg (after the file plugin, since alias works with file/auto)
 RUN sed -i '/^file:file/a alias:'"${ALIAS_PLUGIN_MODULE}"'' plugin.cfg

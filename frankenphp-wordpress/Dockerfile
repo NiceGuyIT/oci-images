@@ -16,11 +16,11 @@ WORKDIR /go/src/app
 # Download FrankenWP cache middleware source for local xcaddy build reference.
 # Using a local copy avoids Go module resolution failures with the remote path.
 RUN mkdir -p cache && \
-	curl -fsSL https://raw.githubusercontent.com/StephenMiracle/frankenwp/main/sidekick/middleware/cache/cache.go -o cache/cache.go && \
-	curl -fsSL https://raw.githubusercontent.com/StephenMiracle/frankenwp/main/sidekick/middleware/cache/store.go -o cache/store.go && \
-	curl -fsSL https://raw.githubusercontent.com/StephenMiracle/frankenwp/main/sidekick/middleware/cache/writer.go -o cache/writer.go && \
-	curl -fsSL https://raw.githubusercontent.com/StephenMiracle/frankenwp/main/sidekick/middleware/cache/go.mod -o cache/go.mod && \
-	curl -fsSL https://raw.githubusercontent.com/StephenMiracle/frankenwp/main/sidekick/middleware/cache/go.sum -o cache/go.sum
+	curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused https://raw.githubusercontent.com/StephenMiracle/frankenwp/main/sidekick/middleware/cache/cache.go -o cache/cache.go && \
+	curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused https://raw.githubusercontent.com/StephenMiracle/frankenwp/main/sidekick/middleware/cache/store.go -o cache/store.go && \
+	curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused https://raw.githubusercontent.com/StephenMiracle/frankenwp/main/sidekick/middleware/cache/writer.go -o cache/writer.go && \
+	curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused https://raw.githubusercontent.com/StephenMiracle/frankenwp/main/sidekick/middleware/cache/go.mod -o cache/go.mod && \
+	curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused https://raw.githubusercontent.com/StephenMiracle/frankenwp/main/sidekick/middleware/cache/go.sum -o cache/go.sum
 
 # Build static binary with all PHP extensions and Caddy modules.
 # GitHub token (if provided) avoids API rate limits during source downloads.
