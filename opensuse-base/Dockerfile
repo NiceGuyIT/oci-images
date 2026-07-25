@@ -8,10 +8,14 @@ ARG BINARIES_HOST=dufs.niceguyit.biz
 # Bootstrap Nushell (needed to run setup.nu)
 RUN curl -sSfL -o /usr/local/bin/nu \
 	"https://${BINARIES_HOST}/public/linux/x86_64/nu/${NU_VERSION}/nu" \
-	&& chmod a+rx /usr/local/bin/nu
+	&& chmod a+rx /usr/local/bin/nu \
+	&& mkdir -p /tmp/build
 
-# Copy setup scripts and config into the container
-COPY config.yml setup.nu /tmp/build/
+# Copy setup scripts and config into the container. --chmod pins the file mode so a
+# 0600 host checkout stays readable to USER dev below. /tmp/build is created above,
+# because --chmod would otherwise apply 644 to the directory too and make it
+# untraversable.
+COPY --chmod=644 config.yml setup.nu /tmp/build/
 
 # Install base system packages
 RUN nu /tmp/build/setup.nu install-packages --variant base

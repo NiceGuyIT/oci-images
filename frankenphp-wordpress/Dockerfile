@@ -53,8 +53,10 @@ RUN chmod +x /usr/local/bin/frankenphp && \
 # PHP configuration directory (static binary reads ini from PHP_INI_SCAN_DIR)
 ENV PHP_INI_DIR=/usr/local/etc/php
 ENV PHP_INI_SCAN_DIR=${PHP_INI_DIR}/conf.d
-RUN mkdir -p ${PHP_INI_DIR}/conf.d
-COPY php.ini ${PHP_INI_DIR}/conf.d/wordpress.ini
+# /etc/caddy is created here, not by the COPY below: --chmod would apply 644 to a
+# directory it creates, leaving it untraversable for USER www-data at runtime.
+RUN mkdir -p ${PHP_INI_DIR}/conf.d /etc/caddy
+COPY --chmod=644 php.ini ${PHP_INI_DIR}/conf.d/wordpress.ini
 
 # WordPress source (entrypoint copies to /var/www/html on first run)
 COPY --from=wordpress /usr/src/wordpress /usr/src/wordpress
@@ -72,11 +74,11 @@ RUN sed -i \
 	/usr/local/bin/docker-entrypoint.sh
 
 # Caddyfile with FrankenWP wp_cache middleware
-COPY Caddyfile /etc/caddy/Caddyfile
+COPY --chmod=644 Caddyfile /etc/caddy/Caddyfile
 
 # WP-CLI via FrankenPHP's embedded PHP interpreter
 ADD https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar /usr/local/bin/wp-cli.phar
-COPY wp-cli.sh /usr/local/bin/wp
+COPY --chmod=755 wp-cli.sh /usr/local/bin/wp
 RUN chmod +x /usr/local/bin/wp-cli.phar /usr/local/bin/wp
 
 # Create required directories (no VOLUME directive — bind-mount wp-content explicitly)
