@@ -9,7 +9,7 @@ opensuse:
 
 published:
   # The openSUSE name and version are appended: v0.1.1-leap-15.6
-  version: "v1.6.0"
+  version: "v1.7.0"
   base:
     # Published image name and version
     name: "opensuse-base"
@@ -193,8 +193,11 @@ binaries:
   list:
     - name: age
       version: "v1.3.1"
-    - name: btm
-      version: "0.10.2"
+    # Mirrored under the package name; `bin` installs it as the `btm` command.
+    # The legacy btm/ path on the mirror is frozen at 0.10.2.
+    - name: bottom
+      version: "0.14.6"
+      bin: btm
     - name: bun
       version: "v1.3"
     - name: chezmoi
