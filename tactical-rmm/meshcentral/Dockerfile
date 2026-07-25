@@ -13,7 +13,7 @@ ARG TRMM_VERSION
 
 RUN apk add --no-cache curl tar \
 	&& mkdir /src \
-	&& curl -fsSL "https://github.com/amidaware/tacticalrmm/archive/refs/tags/v${TRMM_VERSION}.tar.gz" \
+	&& curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused "https://github.com/amidaware/tacticalrmm/archive/refs/tags/v${TRMM_VERSION}.tar.gz" \
 		| tar -xz -C /src --strip-components=1
 
 # Stage 2: Provide the bun binary for the build-time install below.

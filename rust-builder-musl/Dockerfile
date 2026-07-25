@@ -40,7 +40,7 @@ RUN rustup component add clippy rustfmt \
     && rustup target add wasm32-unknown-unknown
 
 # cargo-binstall (pre-built binary, musl variant for the alpine base).
-RUN curl --location --silent --show-error \
+RUN curl --location --silent --show-error --retry 3 --retry-delay 2 --retry-connrefused \
         https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz \
     | tar --extract --gzip --directory /usr/local/cargo/bin
 

@@ -6,7 +6,7 @@ ARG NU_VERSION=0.101.0
 ARG BINARIES_HOST=dufs.niceguyit.biz
 
 # Bootstrap Nushell (needed to run setup.nu)
-RUN curl -sSfL -o /usr/local/bin/nu \
+RUN curl -sSfL --retry 3 --retry-delay 2 --retry-connrefused -o /usr/local/bin/nu \
 	"https://${BINARIES_HOST}/public/linux/x86_64/nu/${NU_VERSION}/nu" \
 	&& chmod a+rx /usr/local/bin/nu \
 	&& mkdir -p /tmp/build
