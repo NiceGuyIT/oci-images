@@ -6,17 +6,17 @@ on:
   workflow_call:
     inputs:
       image-name:
-        description: 'Name of image (directory) to build'
+        description: "Name of image (directory) to build"
         required: true
         type: string
       image-type:
-        description: 'Image variant to build (e.g. base or dev). Only needed for multi-target images like opensuse-base.'
+        description: "Image variant to build (e.g. base or dev). Only needed for multi-target images like opensuse-base."
         required: false
-        default: ''
+        default: ""
         type: string
     outputs:
       registry-paths:
-        description: 'Registry paths where the image was pushed'
+        description: "Registry paths where the image was pushed"
         value: ${{ jobs.build-and-push.outputs.registry-paths }}
 
 jobs:

@@ -81,7 +81,7 @@ ADD https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar /u
 COPY --chmod=755 wp-cli.sh /usr/local/bin/wp
 RUN chmod +x /usr/local/bin/wp-cli.phar /usr/local/bin/wp
 
-# Create required directories (no VOLUME directive — bind-mount wp-content explicitly)
+# Create required directories (no VOLUME directive - bind-mount wp-content explicitly)
 RUN mkdir -p /data/caddy /config/caddy /var/www/html
 
 # Non-root user (Alpine has a www-data group but no user; -G uses the existing group)

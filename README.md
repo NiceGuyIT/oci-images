@@ -8,8 +8,10 @@ Images are published to GitHub Container Registry (`ghcr.io/niceguyit/`).
 Each image has a `Dockerfile`, `build.nu` orchestrator, and `config.yml`:
 
 ```bash
-cd <image-dir> && ./build.nu base
+cd <image-dir> && ./build.nu
 ```
+
+Only `opensuse-base` (`base` / `dev`) and `tactical-rmm` (component name, optional) take an argument.
 
 ## Images
 
@@ -18,9 +20,9 @@ cd <image-dir> && ./build.nu base
 The `opensuse-base` image is an openSUSE Leap 16.0 development environment with pre-installed single-file binaries
 and packages. There are two variants:
 
-1. **base** — For CI pipelines. Includes container tools (buildah, docker, docker-compose, docker-buildx),
+1. **base** - For CI pipelines. Includes container tools (buildah, docker, docker-compose, docker-buildx),
    git, Node.js, Nushell with plugins, and the Forgejo (`fj`) and YouTrack (`yt`) CLIs.
-2. **dev** — For development. Adds JetBrains remote development support (Java 21), PostgreSQL 17, Rust 1.93,
+2. **dev** - For development. Adds JetBrains remote development support (Java 21), PostgreSQL 17, Rust 1.94,
    C/C++ toolchain (clang, gcc), Dioxus dependencies, dotfiles (chezmoi), and additional tools
    (claude-code, starship, ripgrep, fd, etc.).
 
@@ -78,10 +80,10 @@ The `wordpress` image extends the official `wordpress:6.8.1-php8.4-fpm-alpine` i
 
 - pdo, pdo_mysql, soap (compiled)
 - Redis 6.2.0 (PECL)
-- Xdebug 3.4.3 (PECL, non-production only — disabled when `ENVIRONMENT=prod`)
+- Xdebug 3.4.3 (PECL, non-production only - disabled when `ENVIRONMENT=prod`)
 
 ```bash
-cd wordpress && ./build.nu base
+cd wordpress && ./build.nu
 ```
 
 ### FrankenPHP WordPress
@@ -96,21 +98,23 @@ mysqli, mysqlnd, opcache, openssl, pdo, pdo\_mysql, phar, posix, readline, redis
 soap, sockets, sodium, ssh2, tokenizer, xml, xmlreader, xmlwriter, xz, zip, zlib, zstd
 
 **Caddy modules:**
-- [caddy-cbrotli](https://github.com/dunglas/caddy-cbrotli) — Brotli compression
-- [Mercure](https://github.com/dunglas/mercure) — Real-time push
-- [Vulcain](https://github.com/dunglas/vulcain) — HTTP/2+ server push
-- [FrankenWP cache](https://github.com/StephenMiracle/frankenwp) — WordPress caching middleware (`wp_cache`)
+
+- [caddy-cbrotli](https://github.com/dunglas/caddy-cbrotli) - Brotli compression
+- [Mercure](https://github.com/dunglas/mercure) - Real-time push
+- [Vulcain](https://github.com/dunglas/vulcain) - HTTP/2+ server push
+- [FrankenWP cache](https://github.com/StephenMiracle/frankenwp) - WordPress caching middleware (`wp_cache`)
 
 **Features:**
+
 - Fully static musl binary (no runtime dependencies beyond Alpine base)
 - WordPress entrypoint modified for FrankenPHP (copies WP core on first run)
 - WP-CLI available via `wp` (invokes FrankenPHP's embedded PHP)
 - `FORCE_HTTPS` environment variable for reverse proxy setups
-- No `VOLUME` directive — bind-mount `wp-content` explicitly to avoid masking issues
+- No `VOLUME` directive - bind-mount `wp-content` explicitly to avoid masking issues
 - Configurable via environment variables (`SERVER_NAME`, `CACHE_LOC`, `TTL`, `FRANKENPHP_CONFIG`, etc.)
 
 ```bash
-cd frankenphp-wordpress && ./build.nu base
+cd frankenphp-wordpress && ./build.nu
 ```
 
 ### smartctl\_exporter
@@ -120,7 +124,7 @@ The `smartctl_exporter` image repackages the Prometheus
 instead of root.
 
 ```bash
-cd smartctl_exporter && ./build.nu base
+cd smartctl_exporter && ./build.nu
 ```
 
 ### Tactical RMM
@@ -132,14 +136,13 @@ provisions automatically; there is no NeDB or MongoDB option. The single shared 
 upstream Tactical RMM release; every image downloads the source tarball at that tag during build, so a version bump
 is a single-line change that rebuilds all five images together.
 
-
-| Image                  | Purpose                                                                   | Notes                                                                                                                                                                    |
-|------------------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `tactical-backend`     | Django API, Celery worker, Celery beat, Daphne websockets, init container | Single image dispatched by the entrypoint via the first argument (`tactical-init`, `tactical-backend`, `tactical-celery`, `tactical-celerybeat`, `tactical-websockets`). |
-| `tactical-frontend`    | Vue.js bundle on `nginx-unprivileged`                                     | The matching `tacticalrmm-web` release is pulled at build time using the `WEB_VERSION` recorded in upstream `settings.py`.                                               |
+| Image                  | Purpose                                                                   | Notes                                                                                                                                                                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tactical-backend`     | Django API, Celery worker, Celery beat, Daphne websockets, init container | Single image dispatched by the entrypoint via the first argument (`tactical-init`, `tactical-backend`, `tactical-celery`, `tactical-celerybeat`, `tactical-websockets`).                                                                                 |
+| `tactical-frontend`    | Vue.js bundle on `nginx-unprivileged`                                     | The matching `tacticalrmm-web` release is pulled at build time using the `WEB_VERSION` recorded in upstream `settings.py`.                                                                                                                               |
 | `tactical-meshcentral` | MeshCentral remote-access server                                          | The MeshCentral version is pulled from the upstream `MESH_VER` constant in `settings.py`. Stores its data in PostgreSQL only (`MESH_POSTGRES_HOST` defaults to `tactical-postgres`), which `tactical-init` provisions automatically; no NeDB or MongoDB. |
-| `tactical-nats`        | NATS server plus the upstream `nats-api` Go binary under `supervisord`    | Multi-arch aware: selects the upstream-shipped `nats-api` (amd64) or `nats-api-arm64` based on `TARGETARCH`.                                                             |
-| `tactical-nginx`       | TLS-terminating reverse proxy                                             | Generates a self-signed wildcard cert at start if `CERT_PUB_KEY` / `CERT_PRIV_KEY` are not provided.                                                                     |
+| `tactical-nats`        | NATS server plus the upstream `nats-api` Go binary under `supervisord`    | Multi-arch aware: selects the upstream-shipped `nats-api` (amd64) or `nats-api-arm64` based on `TARGETARCH`.                                                                                                                                             |
+| `tactical-nginx`       | TLS-terminating reverse proxy                                             | Generates a self-signed wildcard cert at start if `CERT_PUB_KEY` / `CERT_PRIV_KEY` are not provided.                                                                                                                                                     |
 
 Build all five locally (single command):
 
