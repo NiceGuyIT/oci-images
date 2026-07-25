@@ -19,7 +19,7 @@ The `opensuse-base` image is an openSUSE Leap 16.0 development environment with 
 and packages. There are two variants:
 
 1. **base** — For CI pipelines. Includes container tools (buildah, docker, docker-compose, docker-buildx),
-   git, Node.js, and Nushell with plugins.
+   git, Node.js, Nushell with plugins, and the Forgejo (`fj`) and YouTrack (`yt`) CLIs.
 2. **dev** — For development. Adds JetBrains remote development support (Java 21), PostgreSQL 17, Rust 1.93,
    C/C++ toolchain (clang, gcc), Dioxus dependencies, dotfiles (chezmoi), and additional tools
    (claude-code, starship, ripgrep, fd, etc.).
