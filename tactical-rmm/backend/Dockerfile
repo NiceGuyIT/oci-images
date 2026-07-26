@@ -73,6 +73,16 @@ COPY --from=venv ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 # and then execs the upstream entrypoint.
 COPY --from=source /src/docker/containers/tactical/entrypoint.sh /entrypoint-upstream.sh
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
+COPY settings_env.py ${TACTICAL_TMP_DIR}/api/tacticalrmm/settings_env.py
+
+# tactical-init rewrites local_settings.py on every run, so TRMM_SETTING_* env
+# vars are the only durable override surface. Appended at end of file: settings.py
+# keeps assigning after the local_settings import, so this is the only position
+# where the env wins. The grep anchors the append; if upstream drops that import,
+# the build fails here instead of shipping a broken override chain.
+RUN settings="${TACTICAL_TMP_DIR}/api/tacticalrmm/settings.py" \
+	&& grep --quiet "from .local_settings import" "${settings}" \
+	&& printf '\nfrom .settings_env import env_settings  # noqa: E402\n\nglobals().update(env_settings())\n' >> "${settings}"
 
 RUN apt-get update \
 	&& apt-get upgrade -y \

@@ -11,6 +11,16 @@
 # an empty string if you have built the images locally with `./build.nu base`
 # in each tactical-* directory and want to use those local tags directly.
 
+# Django settings applied from the environment by settings_env.py in the backend
+# image. tactical-init rewrites local_settings.py on every run, so editing that
+# file inside the volume does not survive a restart; set values here instead.
+# The name after TRMM_SETTING_ is the Django setting name. Values parse as JSON,
+# so `"true"` is a bool and `"[30, 60]"` is a list; anything JSON rejects (such as
+# `0.112.2`) stays a string. To force a numeric-looking value to stay a string,
+# quote it as JSON: '"0.112"'. Every applied setting is printed at startup.
+x-trmm-settings: &trmm-settings
+  TRMM_SETTING_INSTALL_NUSHELL_VERSION: "0.112.2"
+
 networks:
   tactical-private:
     name: tactical-private
@@ -147,6 +157,8 @@ services:
     command:
       - tactical-backend
     restart: always
+    environment:
+      <<: *trmm-settings
     volumes:
       - tactical-data:/opt/tactical
     depends_on:
@@ -160,6 +172,8 @@ services:
     command:
       - tactical-websockets
     restart: always
+    environment:
+      <<: *trmm-settings
     volumes:
       - tactical-data:/opt/tactical
     depends_on:
@@ -174,6 +188,8 @@ services:
     command:
       - tactical-celery
     restart: always
+    environment:
+      <<: *trmm-settings
     volumes:
       - tactical-data:/opt/tactical
     depends_on:
@@ -188,6 +204,8 @@ services:
     command:
       - tactical-celerybeat
     restart: always
+    environment:
+      <<: *trmm-settings
     volumes:
       - tactical-data:/opt/tactical
     depends_on:
