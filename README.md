@@ -169,6 +169,37 @@ After the first start, watch `tactical-init` until it exits successfully (it cre
 migrations, writes the MeshCentral token, and provisions the MeshCentral PostgreSQL database when `MESH_POSTGRES_HOST`
 is set). The web UI is served by `tactical-nginx` on `${TRMM_HTTPS_PORT}`.
 
+#### Django settings from the environment
+
+`tactical-init` deletes and regenerates `local_settings.py` on every run, so editing that file inside the
+`tactical-data` volume does not survive a restart. Set Django settings through the environment instead: the backend
+image ships `settings_env.py`, imported at the end of upstream `settings.py`, which applies every `TRMM_SETTING_*`
+variable. The name after the prefix is the Django setting name, and because the import is last, these values win over
+`local_settings.py` and over every upstream assignment.
+
+```yaml
+x-trmm-settings: &trmm-settings
+    TRMM_SETTING_INSTALL_NUSHELL_VERSION: "0.112.2"
+    TRMM_SETTING_UWSGI_MAX_WORKERS: "20"
+```
+
+`compose.example.yml` declares that block once and merges it into the four services that load Django settings:
+`tactical-backend`, `tactical-websockets`, `tactical-celery` and `tactical-celerybeat`. Add it to `tactical-init` as
+well when a setting has to affect migrations.
+
+Values parse as JSON, so types survive: `"true"` becomes a bool and `"[30, 60]"` becomes a list, which is what
+`CHECKIN_HELLO` needs. Anything JSON rejects stays a string, which covers versions like `0.112.2`. The sharp edge is a
+value that is both numeric-looking and valid JSON: `"0.112"` becomes a float. Force it back to a string by quoting it
+as JSON, `'"0.112"'`. Every applied setting is printed at startup with its resolved type, so check `docker logs` after
+a change:
+
+```bash
+docker compose --file compose.example.yml logs tactical-backend | grep settings_env
+```
+
+`TRMM_SETTING_` is a distinct prefix on purpose. The bare `TRMM_` namespace already holds init-only values such as
+`TRMM_USER` and `TRMM_PASS` that are not Django settings.
+
 Verify a deployment end-to-end with `tactical-rmm/test.nu`. Given a domain (or explicit hosts) and an `X-API-KEY`, it
 exercises every public protocol surface in the stack: DNS, TLS, HTTP-to-HTTPS redirects, the Vue frontend SPA, the
 Django REST API (with and without auth), Django Channels websockets, the NATS websocket bridge, nginx static-file

@@ -68,6 +68,7 @@ oci-images/
 │   └── config.yml
 ├── tactical-rmm/               # Five images from one shared config.yml and build.nu
 │   ├── backend/Dockerfile      # Django API, Celery, Daphne, init; dispatched by first arg
+│   ├── backend/settings_env.py # Applies TRMM_SETTING_* env vars as Django settings
 │   ├── frontend/Dockerfile     # Vue.js bundle on nginx-unprivileged
 │   ├── meshcentral/Dockerfile  # MeshCentral, PostgreSQL-backed
 │   ├── nats/Dockerfile
