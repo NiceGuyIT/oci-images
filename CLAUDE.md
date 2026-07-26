@@ -68,12 +68,18 @@ oci-images/
 │   └── config.yml
 ├── tactical-rmm/               # Five images from one shared config.yml and build.nu
 │   ├── backend/Dockerfile      # Django API, Celery, Daphne, init; dispatched by first arg
+│   ├── backend/entrypoint.sh   # Replaces the upstream entrypoint; hash-pinned against drift
+│   ├── backend/local_settings.py # Shim: loads generated_settings.py then local_settings.py from conf/
 │   ├── backend/settings_env.py # Applies TRMM_SETTING_* env vars as Django settings
 │   ├── frontend/Dockerfile     # Vue.js bundle on nginx-unprivileged
+│   ├── frontend/entrypoint.sh  # Fork of upstream; fast readiness poll
 │   ├── meshcentral/Dockerfile  # MeshCentral, PostgreSQL-backed
+│   ├── meshcentral/entrypoint.sh
 │   ├── nats/Dockerfile
+│   ├── nats/entrypoint.sh      # Fork of upstream; fast readiness poll
 │   ├── nginx/Dockerfile
 │   ├── build.nu                # Optional component arg; omit to build all five
+│   ├── compose.example.yml     # Six state volumes; /opt/tactical is baked, never mounted
 │   └── config.yml              # One TRMM_VERSION drives every component
 └── wordpress/                  # PHP/WordPress with Redis, Xdebug
     ├── Dockerfile              # Conditional xdebug install via build arg

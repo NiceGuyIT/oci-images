@@ -29,7 +29,19 @@ SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
 COPY --from=source /src/docker/containers/tactical-nginx/entrypoint.sh /docker-entrypoint.d/entrypoint.sh
 
-RUN chmod +x /docker-entrypoint.d/entrypoint.sh
+# Mount points for the four state volumes this image consumes. They must exist
+# in the image and be owned by the runtime user: a named volume is seeded from
+# the image path it is mounted on, so a missing path yields an empty root-owned
+# directory. certs matters most, being the one this container writes when it
+# generates the self-signed pair, and this service has no depends_on so it can
+# be created before anything else touches the volume.
+RUN chmod +x /docker-entrypoint.d/entrypoint.sh \
+	&& mkdir -p \
+		"${TACTICAL_DIR}/certs" \
+		"${TACTICAL_DIR}/reporting/assets" \
+		"${TACTICAL_DIR}/api/static" \
+		"${TACTICAL_DIR}/api/tacticalrmm/private" \
+	&& chown -R nginx:nginx "${TACTICAL_DIR}"
 
 USER nginx
 
