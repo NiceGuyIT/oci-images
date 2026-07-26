@@ -262,6 +262,21 @@ on every init, which silently invalidated every session and logged every user ou
 templates, then set it back. A file that exists but is not writable is treated as a deliberate read-only bind mount and
 left alone.
 
+#### MeshCentral configuration
+
+`MESH_PERSISTENT_CONFIG` is the same knob for MeshCentral's `config.json` in the `tactical-meshcentral-data` volume, and
+it likewise defaults to `1`. Upstream rewrote that file on every start, so it could not be customized at all; it is now
+seeded from `tactical-rmm/meshcentral/config.json.template` in the image and then left alone. The same read-only
+bind-mount handling applies.
+
+The tradeoff is that a persistent `config.json` pins the values it was seeded with. Changing `MESH_POSTGRES_PASS`,
+`MESH_HOST`, `NGINX_HOST_IP` or any `SMTP_*` variable in `.env` will not reach a MeshCentral that already has a config,
+so either edit `config.json` directly or set `MESH_PERSISTENT_CONFIG=0` for one restart and set it back.
+
+The template's `${...}` placeholders are filled by `envsubst` with an explicit name list, so a `$` inside a password
+cannot be expanded by accident. Note that the values are interpolated into JSON without escaping, as they were in the
+heredoc this replaces, so a password containing a double quote or backslash still produces an invalid `config.json`.
+
 The backend image ships `settings_env.py`, imported at the end of upstream `settings.py`, which applies every
 `TRMM_SETTING_*` variable. The name after the prefix is the Django setting name, and because the import is last, these
 values win over both files in `conf/` and over every upstream assignment.

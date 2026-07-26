@@ -30,8 +30,9 @@ ENV TACTICAL_DIR=/opt/tactical
 # postgresql-client supplies pg_dump (MeshCentral's startup auto-backup shells
 # out to it; without it the backup errors and trips an upstream crash bug) and
 # pg_isready (the entrypoint waits on it before creating accounts, so the mesh
-# server never races an unready PostgreSQL).
-RUN apk add --no-cache bash postgresql-client
+# server never races an unready PostgreSQL). gettext-envsubst renders config.json
+# from its template; it pulls in only libintl, unlike the full gettext package.
+RUN apk add --no-cache bash postgresql-client gettext-envsubst
 
 SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
@@ -43,6 +44,12 @@ COPY --from=source /src/api/tacticalrmm/tacticalrmm/settings.py /tmp/settings.py
 # --chmod pins the mode: without it a 0600 host checkout yields 0700 after the
 # chmod +x below, which USER node cannot execute.
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
+# Seeded into the meshcentral-data volume on first run, then owned by the
+# operator. Kept as a template rather than a heredoc inside the entrypoint so it
+# is reviewable on its own and a live config.json can be diffed against it. The
+# .template suffix is load-bearing: the unquoted ${...} booleans make it invalid
+# JSON, so a *.json name would fail the repo's prettier check.
+COPY config.json.template /home/node/app/templates/config.json
 # Bun binary for the install below. node:*-alpine already ships libstdc++, which
 # is bun's only shared-library dependency on musl.
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
