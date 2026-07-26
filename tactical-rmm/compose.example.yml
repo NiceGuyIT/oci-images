@@ -18,6 +18,14 @@
 # so `"true"` is a bool and `"[30, 60]"` is a list; anything JSON rejects (such as
 # `0.112.2`) stays a string. To force a numeric-looking value to stay a string,
 # quote it as JSON: '"0.112"'. Every applied setting is printed at startup.
+#
+# Placement matters. This block belongs on the services that load Django settings
+# at runtime. Settings read while tactical-init runs belong on tactical-init
+# instead: migrations, superuser creation, and every UWSGI_* knob, since app.ini
+# is generated there by create_uwsgi_conf. uwsgi runtime options (the listen
+# socket in particular, which create_uwsgi_conf hardcodes) are not settable this
+# way at all; use uWSGI's own UWSGI_<OPTION> env vars, as with UWSGI_HTTP_SOCKET
+# on tactical-backend below.
 x-trmm-settings: &trmm-settings
   TRMM_SETTING_INSTALL_NUSHELL_VERSION: "0.112.2"
 
@@ -159,6 +167,12 @@ services:
     restart: always
     environment:
       <<: *trmm-settings
+      # Read by the uwsgi binary, not by settings_env.py, so it takes no
+      # TRMM_SETTING_ prefix and needs no tactical-init re-run. Uncomment when
+      # fronting the stack with an HTTP reverse proxy (Caddy, Traefik) instead of
+      # tactical-nginx, which uses uwsgi_pass against the hardcoded 8080 socket.
+      # Both sockets bind: 8081 speaks HTTP, 8080 keeps the uwsgi protocol.
+      #UWSGI_HTTP_SOCKET: 0.0.0.0:8081
     volumes:
       - tactical-data:/opt/tactical
     depends_on:
