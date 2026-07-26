@@ -11,6 +11,7 @@ the upstream black-formatted Django tree.
 
 import json
 import os
+import sys
 
 PREFIX = "TRMM_SETTING_"
 
@@ -32,7 +33,12 @@ def env_settings():
         name = key[len(PREFIX) :]
         value = _parse(raw)
         overrides[name] = value
-        # Printed so a mistyped name or an unintended type is visible in
-        # docker logs at startup instead of at agent checkin.
-        print(f"settings_env: {name} = {value!r} ({type(value).__name__})")
+        # stderr, never stdout: tactical-init redirects the stdout of
+        # `manage.py get_webtar_url` into tmp/web_tar_url, which the frontend
+        # entrypoint feeds to wget. Anything printed here would corrupt it.
+        # Not the logging module, since settings load before logging is set up.
+        print(
+            f"settings_env: {name} = {value!r} ({type(value).__name__})",
+            file=sys.stderr,
+        )
     return overrides

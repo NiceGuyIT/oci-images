@@ -44,6 +44,11 @@ RUN deluser --remove-home nginx \
 SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
 COPY --from=web /web ${PUBLIC_DIR}
+# The entrypoint greps AGENT_BASE_URL and WEB_VERSION out of this at runtime.
+# Without it both are empty, which makes the dynamic-web-tar guard
+# (`head -c ${#AGENT_BASE}` compared against AGENT_BASE) trivially true, so that
+# branch runs on every start and fetches whatever tmp/web_tar_url happens to hold.
+COPY --from=source /src/api/tacticalrmm/tacticalrmm/settings.py /tmp/settings.py
 COPY --from=source /src/docker/containers/tactical-frontend/entrypoint.sh /docker-entrypoint.d/entrypoint.sh
 
 RUN chown -R nginx:nginx /etc/nginx \
