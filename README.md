@@ -197,12 +197,40 @@ init re-runs and rewrites `app.ini`.
 Five uwsgi keys are hardcoded in `create_uwsgi_conf.py` and cannot be set by any `TRMM_SETTING_`: `chdir`, `module`,
 `home`, `cheaper-algo`, and `socket`.
 
+Worker count is worth capping deliberately. `create_uwsgi_conf` sizes it from RAM alone, with no CPU term: 6 workers
+at 2GB or less, 20 at 4GB or less, 40 above that. A high-RAM, low-core host therefore gets 40 workers, and the
+busyness cheaper (`cheaper-busyness-max` defaults to 10%) climbs toward that ceiling under light load, which can
+saturate a small box and stall requests. Cap it on `tactical-init`:
+
+```yaml
+tactical-init:
+    environment:
+        TRMM_SETTING_UWSGI_MAX_WORKERS: "6"
+        TRMM_SETTING_UWSGI_CHEAPER: "2"
+        TRMM_SETTING_UWSGI_CHEAPER_INITIAL: "2"
+        TRMM_SETTING_UWSGI_BUSYNESS_MAX: "50"
+```
+
+Confirm against the generated file rather than the environment, since init has to re-run for a change to land:
+
+```bash
+docker compose --file compose.example.yml exec tactical-backend grep -E "workers|cheaper" /opt/tactical/api/app.ini
+```
+
 ##### uwsgi runtime options, including the listen socket
 
 Because `socket` is hardcoded to `0.0.0.0:8080` under `DOCKER_BUILD`, no Django setting can move the uwsgi listener.
-Use uWSGI's own environment mapping instead: any option is settable as `UWSGI_<OPTION>`, uppercased with dashes as
-underscores. These are read by the uwsgi binary directly, so they need no init re-run, and they compose with the
-generated `app.ini` rather than replacing it.
+Use uWSGI's own environment mapping instead: an option is settable as `UWSGI_<OPTION>`, uppercased with dashes as
+underscores, read by the uwsgi binary directly with no init re-run.
+
+The mapping **fills in options the generated `app.ini` does not set, and is ignored for options it does**. The ini
+always wins. So every key `create_uwsgi_conf` writes (`master`, `harakiri`, `workers`, `cheaper*`, `max-requests`,
+`listen`, and the rest) has to be changed through `TRMM_SETTING_*` on `tactical-init`; setting `UWSGI_WORKERS` on
+`tactical-backend` is silently ignored. `UWSGI_HTTP_SOCKET` is the useful exception precisely because `http-socket` is
+not one of the keys the ini declares, so it adds a socket instead of replacing one.
+
+Note also that `UWSGI_MAX_WORKERS` is a Django setting name that `create_uwsgi_conf` maps to the ini key `workers`. It
+is not a uWSGI option name, so it means nothing as a `UWSGI_*` environment variable in either direction.
 
 This matters when fronting the stack with something other than `tactical-nginx`. The stock backend socket speaks the
 uwsgi binary protocol, not HTTP (`tactical-nginx` uses `uwsgi_pass`; only its `DEV=1` branch uses `proxy_pass`), so an
