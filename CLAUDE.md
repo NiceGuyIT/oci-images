@@ -75,6 +75,7 @@ oci-images/
 │   ├── frontend/Dockerfile     # Vue.js bundle on nginx-unprivileged
 │   ├── frontend/entrypoint.sh  # Fork of upstream; fast readiness poll
 │   ├── meshcentral/Dockerfile  # MeshCentral, PostgreSQL-backed
+│   ├── meshcentral/config.json.template # Seeded into meshcentral-data; not valid JSON, so not *.json
 │   ├── meshcentral/entrypoint.sh
 │   ├── nats/Dockerfile
 │   ├── nats/entrypoint.sh      # Fork of upstream; fast readiness poll

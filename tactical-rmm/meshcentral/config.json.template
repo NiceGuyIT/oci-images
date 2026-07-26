@@ -1,0 +1,52 @@
+{
+  "settings": {
+    "postgres": {
+      "user": "${MESH_POSTGRES_USER}",
+      "password": "${MESH_POSTGRES_PASS}",
+      "host": "${MESH_POSTGRES_HOST}",
+      "port": "${MESH_POSTGRES_PORT}",
+      "database": "${MESH_POSTGRES_DATABASE}"
+    },
+    "cert": "${MESH_HOST}",
+    "tlsOffload": "${NGINX_HOST_IP}",
+    "redirPort": 8080,
+    "WANonly": true,
+    "minify": 1,
+    "port": 4443,
+    "agentAliasPort": 443,
+    "aliasPort": 443,
+    "allowLoginToken": true,
+    "allowFraming": true,
+    "agentPing": 35,
+    "allowHighQualityDesktop": true,
+    "agentCoreDump": false,
+    "compression": ${MESH_COMPRESSION_ENABLED},
+    "wsCompression": ${MESH_COMPRESSION_ENABLED},
+    "agentWsCompression": ${MESH_COMPRESSION_ENABLED},
+    "webRTC": ${MESH_WEBRTC_ENABLED},
+    "maxInvalidLogin": {
+      "time": 5,
+      "count": 5,
+      "coolofftime": 30
+    }
+  },
+  "domains": {
+    "": {
+      "title": "Tactical RMM",
+      "title2": "TacticalRMM",
+      "newAccounts": false,
+      "mstsc": true,
+      "geoLocation": true,
+      "certUrl": "https://${NGINX_HOST_IP}:${NGINX_HOST_PORT}",
+      "agentConfig": ["webSocketMaskOverride=${WS_MASK_OVERRIDE}"]
+    }
+  },
+  "smtp": {
+    "host": "${SMTP_HOST}",
+    "port": ${SMTP_PORT},
+    "from": "${SMTP_FROM}",
+    "user": "${SMTP_USER}",
+    "pass": "${SMTP_PASS}",
+    "tls": ${SMTP_TLS}
+  }
+}
