@@ -168,7 +168,11 @@ services:
     environment:
       <<: *trmm-settings
       # Read by the uwsgi binary, not by settings_env.py, so it takes no
-      # TRMM_SETTING_ prefix and needs no tactical-init re-run. Uncomment when
+      # TRMM_SETTING_ prefix and needs no tactical-init re-run. UWSGI_* env vars
+      # only fill in options app.ini does not set and are ignored for ones it
+      # does, so this works solely because create_uwsgi_conf writes `socket` and
+      # never `http-socket`. Worker and cheaper knobs are in app.ini, so they
+      # must go through TRMM_SETTING_* on tactical-init. Uncomment when
       # fronting the stack with an HTTP reverse proxy (Caddy, Traefik) instead of
       # tactical-nginx, which uses uwsgi_pass against the hardcoded 8080 socket.
       # Both sockets bind: 8081 speaks HTTP, 8080 keeps the uwsgi protocol.
