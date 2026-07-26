@@ -12,6 +12,12 @@ RUN apk add --no-cache curl tar \
 	&& curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused "https://github.com/amidaware/tacticalrmm/archive/refs/tags/v${TRMM_VERSION}.tar.gz" \
 		| tar -xz -C /src --strip-components=1
 
+# entrypoint.sh here is a fork of the upstream one, so nothing detects upstream
+# changing it. Pin the hash: a TRMM_VERSION bump that rewrites it fails the build
+# instead of silently shipping a stale fork.
+RUN echo "3fa879c079d1202ec0bdd1ae0d6d229f1ff0328859d8d49aaa327693ae37a6f5  /src/docker/containers/tactical-frontend/entrypoint.sh" \
+	| sha256sum -c -
+
 # Stage 2: Download and unpack the matching tacticalrmm-web release.
 # WEB_VERSION is read from the upstream settings.py so the frontend tracks the backend.
 FROM alpine:3 AS web
@@ -49,11 +55,19 @@ COPY --from=web /web ${PUBLIC_DIR}
 # (`head -c ${#AGENT_BASE}` compared against AGENT_BASE) trivially true, so that
 # branch runs on every start and fetches whatever tmp/web_tar_url happens to hold.
 COPY --from=source /src/api/tacticalrmm/tacticalrmm/settings.py /tmp/settings.py
-COPY --from=source /src/docker/containers/tactical-frontend/entrypoint.sh /docker-entrypoint.d/entrypoint.sh
+# Local fork of the upstream entrypoint; see the header comment in that file.
+# --chmod pins the mode so a restrictive host checkout cannot ship a file the
+# base image's /docker-entrypoint.d/ runner refuses to execute.
+COPY --chmod=755 entrypoint.sh /docker-entrypoint.d/entrypoint.sh
 
+# tmp is the only state volume this image mounts. The mount point must exist in
+# the image and be owned by the runtime user: a named volume is seeded from the
+# image path it is mounted on, so a missing path yields an empty root-owned
+# directory that whichever container is created first would then be stuck with.
 RUN chown -R nginx:nginx /etc/nginx \
 	&& chown -R nginx:nginx ${PUBLIC_DIR} \
-	&& chmod +x /docker-entrypoint.d/entrypoint.sh
+	&& mkdir -p ${TACTICAL_DIR}/tmp \
+	&& chown -R nginx:nginx ${TACTICAL_DIR}
 
 USER nginx
 

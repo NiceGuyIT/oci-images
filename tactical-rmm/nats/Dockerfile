@@ -12,6 +12,12 @@ RUN apk add --no-cache curl tar \
 	&& curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused "https://github.com/amidaware/tacticalrmm/archive/refs/tags/v${TRMM_VERSION}.tar.gz" \
 		| tar -xz -C /src --strip-components=1
 
+# entrypoint.sh here is a fork of the upstream one, so nothing detects upstream
+# changing it. Pin the hash: a TRMM_VERSION bump that rewrites it fails the build
+# instead of silently shipping a stale fork.
+RUN echo "683268e1602968be2ee0928bd954b980c9e7e0a31afaabf1ea5dad0d12a1f4fe  /src/docker/containers/tactical-nats/entrypoint.sh" \
+	| sha256sum -c -
+
 # Stage 2: Runtime image. Bundles the pre-built nats-api binary that ships
 # in the upstream Tactical RMM repository.
 FROM ${BASE_IMAGE}:${BASE_TAG}
@@ -27,7 +33,8 @@ SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
 COPY --from=source /src/natsapi/bin/nats-api /tmp/nats-api-amd64
 COPY --from=source /src/natsapi/bin/nats-api-arm64 /tmp/nats-api-arm64
-COPY --from=source /src/docker/containers/tactical-nats/entrypoint.sh /entrypoint.sh
+# Local fork of the upstream entrypoint; see the header comment in that file.
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 # Select the binary that matches the build architecture (set by BuildKit).
 RUN if [ "${TARGETARCH}" = "arm64" ]; then \
@@ -36,13 +43,19 @@ RUN if [ "${TARGETARCH}" = "arm64" ]; then \
 		mv /tmp/nats-api-amd64 /usr/local/bin/nats-api; \
 	fi \
 	&& rm -f /tmp/nats-api-* \
-	&& chmod +x /usr/local/bin/nats-api /entrypoint.sh
+	&& chmod +x /usr/local/bin/nats-api
 
+# ${TACTICAL_DIR}/api is where compose mounts the conf volume for this image, and
+# tmp carries the ready file. Both mount points must exist in the image and be
+# owned by uid 1000: a named volume is seeded from the image path it is mounted
+# on, so a missing path yields an empty root-owned directory.
 RUN touch /usr/local/bin/config_watcher.sh \
 	&& chown 1000:1000 /usr/local/bin/config_watcher.sh \
 	&& mkdir -p /var/log/supervisor /etc/supervisor/conf.d \
 	&& touch /etc/supervisor/conf.d/supervisor.conf \
-	&& chown 1000:1000 /etc/supervisor/conf.d/supervisor.conf
+	&& chown 1000:1000 /etc/supervisor/conf.d/supervisor.conf \
+	&& mkdir -p "${TACTICAL_DIR}/api" "${TACTICAL_DIR}/tmp" \
+	&& chown -R 1000:1000 "${TACTICAL_DIR}"
 
 EXPOSE 4222 9235
 

@@ -16,6 +16,13 @@ RUN apk add --no-cache curl tar \
 	&& curl -fsSL --retry 3 --retry-delay 2 --retry-connrefused "https://github.com/amidaware/tacticalrmm/archive/refs/tags/v${TRMM_VERSION}.tar.gz" \
 		| tar -xz -C /src --strip-components=1
 
+# entrypoint.sh here is a full replacement for the upstream one, not a wrapper, so
+# nothing detects upstream changing its init sequence. Pin the hash: a TRMM_VERSION
+# bump that rewrites upstream's entrypoint fails the build instead of silently
+# shipping a fork that no longer matches what upstream does.
+RUN echo "4c6403615af30b4af6f14834186c8e9cd44ae55f0a7c00329b2f7e1be0b6f50b  /src/docker/containers/tactical/entrypoint.sh" \
+	| sha256sum -c -
+
 # Provide the uv binary for the venv build below.
 FROM ${UV_IMAGE}:${UV_TAG} AS uv
 
@@ -25,13 +32,12 @@ FROM ${BASE_IMAGE}:${BASE_TAG} AS venv
 ARG DEBIAN_FRONTEND=noninteractive
 
 ENV VIRTUAL_ENV=/opt/venv
-ENV TACTICAL_TMP_DIR=/tmp/tactical
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
 COPY --from=uv /uv /usr/local/bin/uv
-COPY --from=source /src/api/tacticalrmm/requirements.txt ${TACTICAL_TMP_DIR}/api/requirements.txt
+COPY --from=source /src/api/tacticalrmm/requirements.txt /tmp/requirements.txt
 
 # uv installs into the venv named by VIRTUAL_ENV. The venv is created by the
 # stdlib venv module (system CPython) so it still ships pip/setuptools for any
@@ -41,7 +47,7 @@ RUN python3 -m venv ${VIRTUAL_ENV} \
 	&& apt-get update \
 	&& apt-get install -y --no-install-recommends gcc libc6-dev \
 	&& uv pip install --no-cache setuptools wheel \
-	&& uv pip install --no-cache -r ${TACTICAL_TMP_DIR}/api/requirements.txt \
+	&& uv pip install --no-cache -r /tmp/requirements.txt \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Stage 3: Fetch the community-scripts repository.
@@ -56,41 +62,68 @@ RUN apk add --no-cache git \
 # Stage 4: Runtime image.
 FROM ${BASE_IMAGE}:${BASE_TAG}
 
+ARG TRMM_VERSION
+# Bumped whenever the on-disk layout changes in a way that makes an existing
+# deployment's volumes incompatible. The entrypoint refuses to start when the
+# marker file is missing, which is what a legacy whole-directory mount over
+# /opt/tactical looks like from inside the container.
+ARG TACTICAL_LAYOUT=2
+
 ENV VIRTUAL_ENV=/opt/venv
 ENV TACTICAL_DIR=/opt/tactical
-ENV TACTICAL_TMP_DIR=/tmp/tactical
+ENV TACTICAL_CONF_DIR=${TACTICAL_DIR}/conf
 ENV TACTICAL_READY_FILE=${TACTICAL_DIR}/tmp/tactical.ready
+ENV TACTICAL_LAYOUT_FILE=${TACTICAL_DIR}/.image-layout
 ENV TACTICAL_USER=tactical
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
-COPY --from=source /src/api/tacticalrmm ${TACTICAL_TMP_DIR}/api
-COPY --from=scripts /community-scripts ${TACTICAL_TMP_DIR}/community-scripts
+# The Django tree lands at its final runtime path. Upstream stages it in
+# /tmp/tactical and rsyncs it into a shared volume on every start; baking it here
+# is what removes that copy, and with it the need to mount a volume over the
+# whole directory.
+COPY --from=source /src/api/tacticalrmm ${TACTICAL_DIR}/api
+COPY --from=scripts /community-scripts ${TACTICAL_DIR}/community-scripts
 COPY --from=venv ${VIRTUAL_ENV} ${VIRTUAL_ENV}
-# The upstream entrypoint is kept unmodified. entrypoint.sh is a thin local
-# wrapper that provisions the MeshCentral PostgreSQL database during tactical-init
-# and then execs the upstream entrypoint.
-COPY --from=source /src/docker/containers/tactical/entrypoint.sh /entrypoint-upstream.sh
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
-COPY settings_env.py ${TACTICAL_TMP_DIR}/api/tacticalrmm/settings_env.py
+COPY settings_env.py ${TACTICAL_DIR}/api/tacticalrmm/settings_env.py
+COPY local_settings.py ${TACTICAL_DIR}/api/tacticalrmm/local_settings.py
 
-# tactical-init rewrites local_settings.py on every run, so TRMM_SETTING_* env
-# vars are the only durable override surface. Appended at end of file: settings.py
-# keeps assigning after the local_settings import, so this is the only position
-# where the env wins. The grep anchors the append; if upstream drops that import,
-# the build fails here instead of shipping a broken override chain.
-RUN settings="${TACTICAL_TMP_DIR}/api/tacticalrmm/settings.py" \
+# TRMM_SETTING_* env vars are applied after every other settings source.
+# Appended at end of file: settings.py keeps assigning after the local_settings
+# import, so this is the only position where the env wins. The grep anchors the
+# append; if upstream drops that import, the build fails here instead of shipping
+# a broken override chain.
+RUN settings="${TACTICAL_DIR}/api/tacticalrmm/settings.py" \
 	&& grep --quiet "from .local_settings import" "${settings}" \
 	&& printf '\nfrom .settings_env import env_settings  # noqa: E402\n\nglobals().update(env_settings())\n' >> "${settings}"
 
 RUN apt-get update \
 	&& apt-get upgrade -y \
-	&& apt-get install -y --no-install-recommends rsync weasyprint \
+	&& apt-get install -y --no-install-recommends weasyprint \
 	&& rm -rf /var/lib/apt/lists/* \
 	&& groupadd -g 1000 "${TACTICAL_USER}" \
-	&& useradd -M -d "${TACTICAL_DIR}" -s /bin/bash -u 1000 -g 1000 "${TACTICAL_USER}" \
-	&& chmod +x /entrypoint.sh /entrypoint-upstream.sh
+	&& useradd -M -d "${TACTICAL_DIR}" -s /bin/bash -u 1000 -g 1000 "${TACTICAL_USER}"
+
+# Mount points for the state volumes, plus the generated-config symlinks. Three
+# management commands write their output to settings.BASE_DIR with open(..., "w"),
+# which follows a symlink and creates the target, so pointing these at the conf
+# volume puts them where every service can read them without patching upstream.
+RUN mkdir -p \
+		"${TACTICAL_CONF_DIR}" \
+		"${TACTICAL_DIR}/tmp" \
+		"${TACTICAL_DIR}/certs" \
+		"${TACTICAL_DIR}/reporting/assets" \
+		"${TACTICAL_DIR}/api/static" \
+		"${TACTICAL_DIR}/api/tacticalrmm/private/exe" \
+		"${TACTICAL_DIR}/api/tacticalrmm/private/log" \
+	&& touch "${TACTICAL_DIR}/api/tacticalrmm/private/log/django_debug.log" \
+	&& ln -s ../conf/app.ini "${TACTICAL_DIR}/api/app.ini" \
+	&& ln -s ../conf/nats-rmm.conf "${TACTICAL_DIR}/api/nats-rmm.conf" \
+	&& ln -s ../conf/nats-api.conf "${TACTICAL_DIR}/api/nats-api.conf" \
+	&& printf 'layout=%s\ntrmm_version=%s\n' "${TACTICAL_LAYOUT}" "${TRMM_VERSION}" > "${TACTICAL_LAYOUT_FILE}" \
+	&& chown -R 1000:1000 "${TACTICAL_DIR}"
 
 WORKDIR ${TACTICAL_DIR}/api
 

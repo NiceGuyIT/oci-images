@@ -69,9 +69,14 @@ RUN MESH_VER=$(grep -o 'MESH_VER.*' /tmp/settings.py | cut -d'"' -f 2) \
 }
 EOF
 
+# The two state volume mount points must exist in the image and be owned by the
+# runtime user. A named volume is seeded from the image path it is mounted on, so
+# a path the image lacks yields an empty root-owned directory that this container,
+# running as uid 1000, cannot write.
 RUN bun install \
 	&& chmod +x /entrypoint.sh \
-	&& chown -R node:node /home/node
+	&& mkdir -p /home/node/app/meshcentral-data "${TACTICAL_DIR}/tmp" \
+	&& chown -R node:node /home/node "${TACTICAL_DIR}"
 
 EXPOSE 8080 4443
 
