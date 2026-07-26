@@ -26,11 +26,9 @@
 #
 # Placement matters. This block belongs on the services that load Django settings
 # at runtime. Settings read while tactical-init runs belong on tactical-init
-# instead: migrations, superuser creation, and every UWSGI_* knob, since app.ini
-# is generated there by create_uwsgi_conf. uwsgi runtime options (the listen
-# socket in particular, which create_uwsgi_conf hardcodes) are not settable this
-# way at all; use uWSGI's own UWSGI_<OPTION> env vars, as with UWSGI_HTTP_SOCKET
-# on tactical-backend below.
+# instead: anything affecting migrations or superuser creation. uwsgi is no longer
+# in that category, because app.ini is a file you edit rather than something a
+# management command regenerates; see tactical-conf/app.ini.
 x-trmm-settings: &trmm-settings
   TRMM_SETTING_INSTALL_NUSHELL_VERSION: "0.112.2"
 
@@ -51,9 +49,10 @@ networks:
     driver: bridge
 
 volumes:
-  # Generated and operator-owned configuration: generated_settings.py,
-  # local_settings.py, app.ini, nats-rmm.conf, nats-api.conf. Bind-mount a host
-  # directory here to author them yourself.
+  # Configuration, in two classes. Rewritten every init: generated_settings.py,
+  # nats-rmm.conf, nats-api.conf. Seeded once and then yours: local_settings.py
+  # and app.ini. Bind-mount a host directory here to author the latter two
+  # yourself; read-only is supported, the seed step skips what it cannot write.
   tactical-conf:
     name: tactical-conf
   # Cross-container handoffs: tactical.ready, mesh_token, web_tar_url.
@@ -125,6 +124,7 @@ services:
       MESH_POSTGRES_DATABASE: ${MESH_POSTGRES_DATABASE}
       TRMM_USER: ${TRMM_USER}
       TRMM_PASS: ${TRMM_PASS}
+      TRMM_PERSISTENT_CONFIG: ${TRMM_PERSISTENT_CONFIG-1}
       TRMM_DISABLE_WEB_TERMINAL: ${TRMM_DISABLE_WEB_TERMINAL}
       TRMM_DISABLE_SERVER_SCRIPTS: ${TRMM_DISABLE_SERVER_SCRIPTS}
       TRMM_DISABLE_SSO: ${TRMM_DISABLE_SSO}
@@ -218,14 +218,13 @@ services:
     environment:
       <<: *trmm-settings
       # Read by the uwsgi binary, not by settings_env.py, so it takes no
-      # TRMM_SETTING_ prefix and needs no tactical-init re-run. UWSGI_* env vars
-      # only fill in options app.ini does not set and are ignored for ones it
-      # does, so this works solely because create_uwsgi_conf writes `socket` and
-      # never `http-socket`. Worker and cheaper knobs are in app.ini, so they
-      # must go through TRMM_SETTING_* on tactical-init. Uncomment when
-      # fronting the stack with an HTTP reverse proxy (Caddy, Traefik) instead of
-      # tactical-nginx, which uses uwsgi_pass against the hardcoded 8080 socket.
-      # Both sockets bind: 8081 speaks HTTP, 8080 keeps the uwsgi protocol.
+      # TRMM_SETTING_ prefix. UWSGI_* env vars only fill in options app.ini does
+      # not set and are ignored for ones it does, so this works because app.ini
+      # declares `socket` and never `http-socket`; anything app.ini does set has
+      # to be changed in the file itself. Uncomment when fronting the stack with
+      # an HTTP reverse proxy (Caddy, Traefik) instead of tactical-nginx, which
+      # uses uwsgi_pass against the 8080 socket. Both sockets bind: 8081 speaks
+      # HTTP, 8080 keeps the uwsgi protocol.
       #UWSGI_HTTP_SOCKET: 0.0.0.0:8081
     volumes: *django-volumes
     depends_on:

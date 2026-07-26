@@ -68,6 +68,7 @@ oci-images/
 │   └── config.yml
 ├── tactical-rmm/               # Five images from one shared config.yml and build.nu
 │   ├── backend/Dockerfile      # Django API, Celery, Daphne, init; dispatched by first arg
+│   ├── backend/app.ini         # uwsgi template seeded into conf/; replaces create_uwsgi_conf
 │   ├── backend/entrypoint.sh   # Replaces the upstream entrypoint; hash-pinned against drift
 │   ├── backend/local_settings.py # Shim: loads generated_settings.py then local_settings.py from conf/
 │   ├── backend/settings_env.py # Applies TRMM_SETTING_* env vars as Django settings
