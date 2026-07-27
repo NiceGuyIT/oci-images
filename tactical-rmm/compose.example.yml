@@ -3,8 +3,8 @@
 #
 # Brings up the five custom images (backend, frontend, meshcentral, nats, nginx)
 # plus the stock postgres and redis dependencies. MeshCentral stores its data in
-# the shared PostgreSQL server (tactical-postgres); tactical-init provisions the
-# mesh database and role automatically. Copy `.env.example` to `.env`, fill in the
+# the shared PostgreSQL server (tactical-postgres), which the Django services
+# provision automatically at startup. Copy `.env.example` to `.env`, fill in the
 # secrets and host names, then `docker compose up -d`.
 #
 # IMAGE_REPO defaults to ghcr.io/niceguyit/ (the published location). Set it to
@@ -24,23 +24,49 @@
 # string, quote it as JSON: '"0.112"'. Every applied setting is printed to stderr
 # at startup.
 #
-# Placement matters. This block belongs on the services that load Django settings
-# at runtime. Settings read while tactical-init runs belong on tactical-init
-# instead: anything affecting migrations or superuser creation. uwsgi is no longer
-# in that category, because app.ini is a file you edit rather than something a
-# management command regenerates; see tactical-conf/app.ini.
+# Every Django service now runs the startup bootstrap, so there is no longer a
+# separate place for settings read during it; this block reaches all of them.
+# uwsgi is not configured this way at all: app.ini is a file you edit rather than
+# something a management command regenerates. See tactical-conf/app.ini.
 x-trmm-settings: &trmm-settings
   TRMM_SETTING_INSTALL_NUSHELL_VERSION: "0.112.2"
+
+# Every Django service runs the same startup bootstrap, so every one of them
+# needs the values it reads. This used to be the tactical-init service's
+# environment; that service is gone and the work is serialized by an advisory
+# lock instead, so the settings move here.
+x-django-env: &django-env
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PASS: ${POSTGRES_PASS}
+  APP_HOST: ${APP_HOST}
+  API_HOST: ${API_HOST}
+  CSRF_COOKIE_DOMAIN: ${CSRF_COOKIE_DOMAIN}
+  SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN}
+  MESH_USER: ${MESH_USER}
+  MESH_HOST: ${MESH_HOST}
+  MESH_POSTGRES_HOST: ${MESH_POSTGRES_HOST:-tactical-postgres}
+  MESH_POSTGRES_PORT: ${MESH_POSTGRES_PORT}
+  MESH_POSTGRES_USER: ${MESH_POSTGRES_USER}
+  MESH_POSTGRES_PASS: ${MESH_POSTGRES_PASS}
+  MESH_POSTGRES_DATABASE: ${MESH_POSTGRES_DATABASE}
+  TRMM_USER: ${TRMM_USER}
+  TRMM_PASS: ${TRMM_PASS}
+  TRMM_PERSISTENT_CONFIG: ${TRMM_PERSISTENT_CONFIG-1}
+  TRMM_FORCE_INIT: ${TRMM_FORCE_INIT-0}
+  TRMM_DISABLE_WEB_TERMINAL: ${TRMM_DISABLE_WEB_TERMINAL}
+  TRMM_DISABLE_SERVER_SCRIPTS: ${TRMM_DISABLE_SERVER_SCRIPTS}
+  TRMM_DISABLE_SSO: ${TRMM_DISABLE_SSO}
 
 # Shared by every service that loads Django settings. The conf volume is
 # read-write rather than read-only because reload_nats() rewrites nats-rmm.conf
 # from the running API whenever an agent is added or removed, not only during
-# init.
+# the bootstrap. static is read-write because collectstatic runs in the bootstrap.
 x-django-volumes: &django-volumes
   - tactical-conf:/opt/tactical/conf
   - tactical-tmp:/opt/tactical/tmp
   - tactical-private:/opt/tactical/api/tacticalrmm/private
   - tactical-reporting:/opt/tactical/reporting
+  - tactical-static:/opt/tactical/api/static
   - tactical-certs:/opt/tactical/certs:ro
 
 networks:
@@ -55,7 +81,8 @@ volumes:
   # yourself; read-only is supported, the seed step skips what it cannot write.
   tactical-conf:
     name: tactical-conf
-  # Cross-container handoffs: tactical.ready, mesh_token, web_tar_url.
+  # Cross-container handoffs: mesh_token, web_tar_url, and the tactical.ready
+  # marker recording which image last completed a full bootstrap.
   tactical-tmp:
     name: tactical-tmp
   # Generated agent installers and Django logs. Served by nginx under /private/.
@@ -67,7 +94,7 @@ volumes:
   # Reporting assets uploaded through the dashboard.
   tactical-reporting:
     name: tactical-reporting
-  # collectstatic output. Written by tactical-init, served by tactical-nginx.
+  # collectstatic output. Written by the bootstrap, served by tactical-nginx.
   tactical-static:
     name: tactical-static
   tactical-meshcentral-data:
@@ -100,52 +127,6 @@ services:
     networks:
       - tactical-private
 
-  # Runs as root so it can chown the state volumes on first use, which is what
-  # makes a bind-mounted host directory work. It creates no large file trees:
-  # the application code is baked into the image.
-  tactical-init:
-    image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-backend:${VERSION}
-    restart: on-failure
-    command:
-      - tactical-init
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASS: ${POSTGRES_PASS}
-      APP_HOST: ${APP_HOST}
-      API_HOST: ${API_HOST}
-      CSRF_COOKIE_DOMAIN: ${CSRF_COOKIE_DOMAIN}
-      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN}
-      MESH_USER: ${MESH_USER}
-      MESH_HOST: ${MESH_HOST}
-      MESH_POSTGRES_HOST: ${MESH_POSTGRES_HOST:-tactical-postgres}
-      MESH_POSTGRES_PORT: ${MESH_POSTGRES_PORT}
-      MESH_POSTGRES_USER: ${MESH_POSTGRES_USER}
-      MESH_POSTGRES_PASS: ${MESH_POSTGRES_PASS}
-      MESH_POSTGRES_DATABASE: ${MESH_POSTGRES_DATABASE}
-      TRMM_USER: ${TRMM_USER}
-      TRMM_PASS: ${TRMM_PASS}
-      TRMM_PERSISTENT_CONFIG: ${TRMM_PERSISTENT_CONFIG-1}
-      TRMM_FORCE_INIT: ${TRMM_FORCE_INIT-0}
-      TRMM_DISABLE_WEB_TERMINAL: ${TRMM_DISABLE_WEB_TERMINAL}
-      TRMM_DISABLE_SERVER_SCRIPTS: ${TRMM_DISABLE_SERVER_SCRIPTS}
-      TRMM_DISABLE_SSO: ${TRMM_DISABLE_SSO}
-    # tactical-init provisions the MeshCentral role/database before mesh needs it,
-    # so it must NOT depend on tactical-meshcentral (that ordering, plus mesh needing
-    # the provisioned database, is the chicken-and-egg deadlock). init depends only
-    # on the datastores; mesh waits for init's provisioning in its own entrypoint.
-    depends_on:
-      - tactical-postgres
-      - tactical-redis
-    volumes:
-      - tactical-conf:/opt/tactical/conf
-      - tactical-tmp:/opt/tactical/tmp
-      - tactical-private:/opt/tactical/api/tacticalrmm/private
-      - tactical-reporting:/opt/tactical/reporting
-      - tactical-certs:/opt/tactical/certs
-      - tactical-static:/opt/tactical/api/static
-    networks:
-      - tactical-private
-
   tactical-nats:
     image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-nats:${VERSION}
     user: 1000:1000
@@ -158,9 +139,8 @@ services:
     volumes:
       - tactical-conf:/opt/tactical/api:ro
       - tactical-tmp:/opt/tactical/tmp
-    depends_on:
-      tactical-init:
-        condition: service_completed_successfully
+    # No depends_on: the entrypoint waits for nats-rmm.conf, which whichever
+    # Django container wins the bootstrap lock writes.
     networks:
       tactical-private:
         aliases:
@@ -181,13 +161,11 @@ services:
       MESH_POSTGRES_PASS: ${MESH_POSTGRES_PASS}
       MESH_POSTGRES_DATABASE: ${MESH_POSTGRES_DATABASE}
       NGINX_HOST_IP: tactical-nginx
-    # Start after tactical-init so its database provisioning is already under way.
-    # Completion is not required here (init later waits on mesh for the login token,
-    # so a service_completed_successfully condition would re-introduce the deadlock);
-    # the mesh entrypoint waits for the provisioned database itself.
+    # The mesh entrypoint waits for its own database to be provisioned, which the
+    # Django bootstrap does. Expressing that as a compose dependency would
+    # deadlock, because the bootstrap in turn waits on mesh for the login token.
     depends_on:
       - tactical-postgres
-      - tactical-init
     volumes:
       - tactical-tmp:/opt/tactical/tmp
       - tactical-meshcentral-data:/home/node/app/meshcentral-data
@@ -204,9 +182,8 @@ services:
       API_HOST: ${API_HOST}
     volumes:
       - tactical-tmp:/opt/tactical/tmp:ro
-    depends_on:
-      tactical-init:
-        condition: service_completed_successfully
+    # No depends_on: the entrypoint waits for web_tar_url, which tactical-backend
+    # writes during its bootstrap.
     networks:
       - tactical-private
 
@@ -217,7 +194,7 @@ services:
       - tactical-backend
     restart: always
     environment:
-      <<: *trmm-settings
+      <<: [*django-env, *trmm-settings]
       # Read by the uwsgi binary, not by settings_env.py, so it takes no
       # TRMM_SETTING_ prefix. UWSGI_* env vars only fill in options app.ini does
       # not set and are ignored for ones it does, so this works because app.ini
@@ -231,8 +208,6 @@ services:
     depends_on:
       tactical-postgres:
         condition: service_started
-      tactical-init:
-        condition: service_completed_successfully
     networks:
       - tactical-private
 
@@ -243,15 +218,13 @@ services:
       - tactical-websockets
     restart: always
     environment:
-      <<: *trmm-settings
+      <<: [*django-env, *trmm-settings]
     volumes: *django-volumes
     depends_on:
       tactical-postgres:
         condition: service_started
       tactical-backend:
         condition: service_started
-      tactical-init:
-        condition: service_completed_successfully
     networks:
       - tactical-private
 
@@ -262,15 +235,13 @@ services:
       - tactical-celery
     restart: always
     environment:
-      <<: *trmm-settings
+      <<: [*django-env, *trmm-settings]
     volumes: *django-volumes
     depends_on:
       tactical-postgres:
         condition: service_started
       tactical-redis:
         condition: service_started
-      tactical-init:
-        condition: service_completed_successfully
     networks:
       - tactical-private
 
@@ -281,15 +252,13 @@ services:
       - tactical-celerybeat
     restart: always
     environment:
-      <<: *trmm-settings
+      <<: [*django-env, *trmm-settings]
     volumes: *django-volumes
     depends_on:
       tactical-postgres:
         condition: service_started
       tactical-redis:
         condition: service_started
-      tactical-init:
-        condition: service_completed_successfully
     networks:
       - tactical-private
 

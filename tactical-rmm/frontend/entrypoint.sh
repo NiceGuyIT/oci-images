@@ -3,10 +3,12 @@
 # tactical-frontend entrypoint.
 #
 # Forked from the upstream tactical-frontend entrypoint. The only change is the
-# readiness wait: upstream sleeps 15 seconds unconditionally and then polls every
-# 10, which this image does not need because compose gates the service on
-# tactical-init completing. The upstream file's hash is pinned in the Dockerfile
-# so a TRMM_VERSION bump that changes it fails the build.
+# readiness wait. Upstream sleeps 15 seconds unconditionally, then polls every 10
+# for the ready file written by the tactical-init container. There is no such
+# container any more, so this waits on the artifact it actually consumes instead:
+# web_tar_url, written by tactical-backend's bootstrap. The upstream file's hash
+# is pinned in the Dockerfile so a TRMM_VERSION bump that changes it fails the
+# build.
 #
 # Runs from the base image's /docker-entrypoint.d/ hook, so it configures nginx
 # and returns; the base image starts nginx afterwards. That also means a failure
@@ -14,9 +16,11 @@
 
 set -e
 
+URL_PATH="${TACTICAL_DIR}/tmp/web_tar_url"
+
 function check_tactical_ready {
-	until [ -f "${TACTICAL_READY_FILE}" ]; do
-		echo "waiting for init container to finish install or update..."
+	until [ -s "${URL_PATH}" ]; do
+		echo "waiting for tactical-backend to write ${URL_PATH}..."
 		sleep 1
 	done
 }
@@ -45,7 +49,6 @@ echo "${nginx_config}" >/etc/nginx/conf.d/default.conf
 
 check_tactical_ready
 
-URL_PATH="${TACTICAL_DIR}/tmp/web_tar_url"
 AGENT_BASE=$(grep -o 'AGENT_BASE_URL.*' /tmp/settings.py | cut -d'"' -f 2)
 WEB_VERSION=$(grep -o 'WEB_VERSION.*' /tmp/settings.py | cut -d'"' -f 2)
 

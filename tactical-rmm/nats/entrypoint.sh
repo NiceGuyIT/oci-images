@@ -3,10 +3,11 @@
 # tactical-nats entrypoint.
 #
 # Forked from the upstream tactical-nats entrypoint. The only change is the
-# readiness wait: upstream sleeps 15 seconds unconditionally and then polls every
-# 10, which this image does not need because compose gates the service on
-# tactical-init completing. The upstream file's hash is pinned in the Dockerfile
-# so a TRMM_VERSION bump that changes it fails the build.
+# readiness wait. Upstream sleeps 15 seconds unconditionally, then polls every 10
+# for the ready file written by the tactical-init container. There is no such
+# container any more, so this waits on the config it actually consumes instead,
+# written by tactical-backend's bootstrap. The upstream file's hash is pinned in
+# the Dockerfile so a TRMM_VERSION bump that changes it fails the build.
 #
 # The config paths are unchanged. The backend writes nats-rmm.conf and
 # nats-api.conf into the conf volume through symlinks in its own api directory,
@@ -26,8 +27,8 @@ else
 	NATS_API_CONFIG="${TACTICAL_DIR}/api/nats-api.conf"
 fi
 
-until [ -f "${TACTICAL_READY_FILE}" ]; do
-	echo "waiting for init container to finish install or update..."
+until [ -s "${NATS_CONFIG}" ] && [ -s "${NATS_API_CONFIG}" ]; do
+	echo "waiting for tactical-backend to write ${NATS_CONFIG}..."
 	sleep 1
 done
 
