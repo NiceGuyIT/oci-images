@@ -144,6 +144,32 @@ is a single-line change that rebuilds all five images together.
 | `tactical-nats`        | NATS server plus the upstream `nats-api` Go binary under `supervisord` | Multi-arch aware: selects the upstream-shipped `nats-api` (amd64) or `nats-api-arm64` based on `TARGETARCH`.                                                                                                                                                        |
 | `tactical-nginx`       | TLS-terminating reverse proxy                                          | Generates a self-signed wildcard cert at start if `CERT_PUB_KEY` / `CERT_PRIV_KEY` are not provided.                                                                                                                                                                |
 
+#### Tag scheme
+
+Two versions move independently, so the tag carries both: ours first, then the upstream release it packages. Same
+shape as the `rust-builder-*` images.
+
+```
+tactical-backend:v1.0.0-trmm1.5.1
+tactical-backend:v1.0-trmm1.5.1
+tactical-backend:v1-trmm1.5.1
+tactical-backend:latest-trmm1.5.1
+tactical-backend:latest
+```
+
+`v1.0.0-trmm1.5.1` reads as "our first packaging of upstream 1.5.1". A change to these images with no upstream change
+becomes `v1.0.1-trmm1.5.1`; an upstream bump with no packaging change becomes `v1.0.0-trmm1.5.2`. Pin the full version
+in production. `latest-trmm1.5.1` is the newest packaging of one upstream release, which is the useful moving tag when
+you want our fixes but not an upstream upgrade.
+
+`tactical-rmm/config.yml` holds both: `tacticalrmm.version` for upstream and `published.version` for ours. Bump
+`published.version` whenever anything in the directory changes, a Dockerfile, an entrypoint or a config template. All
+five images share the one number, since they are always built and released as a set.
+
+Publishing under the upstream version alone, as these images previously did, made two different builds of our packaging
+indistinguishable. That is why the layout guard and `TRMM_FORCE_INIT` exist; the image version is recorded in
+`/opt/tactical/.image-layout`, so a bump now also makes the next start run the full bootstrap on its own.
+
 Build all five locally (single command):
 
 ```bash

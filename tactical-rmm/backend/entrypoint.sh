@@ -327,11 +327,11 @@ function seed_app_ini {
 # skipped. Upstream writes the literal string "tactical-init" here, which carries
 # no such information, so it re-ran everything on every start.
 #
-# The marker only changes with TRMM_VERSION or the layout revision, so rebuilding
-# the image without bumping either (a changed entrypoint, a changed app.ini
-# template) still takes the short path. Nothing in the long path is needed for
-# those, but TRMM_FORCE_INIT=1 forces it when you want it anyway, which beats
-# telling people to delete a file out of a named volume.
+# The marker carries the layout revision, the upstream release and our own image
+# version, so any released change to these images moves it and the next start
+# runs the full bootstrap. TRMM_FORCE_INIT=1 still forces it for a local rebuild
+# that did not bump config.yml published.version, which beats telling people to
+# delete a file out of a named volume.
 function init_is_current {
 	[ "${TRMM_FORCE_INIT}" = "1" ] && return 1
 	[ -f "${TACTICAL_READY_FILE}" ] || return 1
