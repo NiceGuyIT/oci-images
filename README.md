@@ -171,6 +171,33 @@ is set). Every service that loads Django settings waits on it through
 `depends_on` / `service_completed_successfully`, so nothing starts against a half-migrated database. The web UI is
 served by `tactical-nginx` on `${TRMM_HTTPS_PORT}`.
 
+#### What tactical-init does on a restart
+
+`tactical-init` has two paths, and it says which one it took in its first log line. The full install sequence runs on a
+first run and whenever the image's Tactical RMM version or on-disk layout changes; otherwise it runs a short path and
+finishes in seconds. Upstream re-ran everything on every start, because it wrote the literal string `tactical-init` into
+its ready file and so had no way to tell one case from the other.
+
+| Step                                                                                                   | Full | Short |
+| ------------------------------------------------------------------------------------------------------ | ---- | ----- |
+| Provision the MeshCentral database, seed missing config, `migrate`                                     | yes  | yes   |
+| `get_webtar_url`, `reload_nats`, `create_natsapi_conf`, `clear_redis_celery_locks`                     | yes  | yes   |
+| `pre_update_tasks`, `generate_json_schemas`, `collectstatic`, `initial_db_setup`, `initial_mesh_setup` | yes  | no    |
+| `load_chocos`, `load_community_scripts`, `create_installer_user`, `post_update_tasks`, superuser       | yes  | no    |
+| Wait for MeshCentral to accept connections                                                             | yes  | no    |
+
+Everything skipped on the short path is either upgrade-shaped or already persisted in a volume or the database.
+`migrate` stays in even though it is normally a no-op round trip, so a hand-applied database change is still caught.
+
+Dropping the MeshCentral wait is most of the saving. Only `initial_mesh_setup` needs the mesh server itself (it opens a
+websocket to it); the short path needs nothing but the login token, which is already in the `tactical-tmp` volume. That
+wait is the longest part of a cold start, because MeshCentral in turn waits on nginx before it listens.
+
+The ready file is a copy of the image's `/opt/tactical/.image-layout` marker, so it records both values that matter.
+Because the marker only changes with `TRMM_VERSION` or the layout revision, rebuilding the image without bumping either
+still takes the short path. Nothing in the full path is needed for that, but `TRMM_FORCE_INIT=1` forces it anyway;
+deleting the ready file from `tactical-tmp` has the same effect.
+
 #### On-disk layout
 
 The Django tree is baked into the `tactical-backend` image at `/opt/tactical` and is **not** a volume. Upstream instead

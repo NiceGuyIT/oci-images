@@ -35,6 +35,9 @@ set -e
 # survive. 0 regenerates both on every init, which is what upstream did.
 : "${TRMM_PERSISTENT_CONFIG:=1}"
 
+# 1 runs the full init even when the recorded state already matches this image.
+: "${TRMM_FORCE_INIT:=0}"
+
 : "${TRMM_USER:=tactical}"
 : "${TRMM_PASS:=tactical}"
 : "${POSTGRES_HOST:=tactical-postgres}"
@@ -343,26 +346,30 @@ function seed_app_ini {
 	cp "${TACTICAL_TEMPLATE_DIR}/app.ini" "${target}"
 }
 
-case "$1" in
-tactical-init)
-	test -f "${TACTICAL_READY_FILE}" && rm "${TACTICAL_READY_FILE}"
+# The ready file is a copy of the image's layout marker, so it records both the
+# layout revision and TRMM_VERSION. Matching means this exact image already
+# finished an init against this state, and the upgrade-shaped work can be
+# skipped. Upstream writes the literal string "tactical-init" here, which carries
+# no such information, so it re-ran everything on every start.
+#
+# The marker only changes with TRMM_VERSION or the layout revision, so rebuilding
+# the image without bumping either (a changed entrypoint, a changed app.ini
+# template) still takes the short path. Nothing in the long path is needed for
+# those, but TRMM_FORCE_INIT=1 forces it when you want it anyway, which beats
+# telling people to delete a file out of a named volume.
+function init_is_current {
+	[ "${TRMM_FORCE_INIT}" = "1" ] && return 1
+	[ -f "${TACTICAL_READY_FILE}" ] || return 1
+	cmp --silent "${TACTICAL_READY_FILE}" "${TACTICAL_LAYOUT_FILE}"
+}
 
-	ensure_state_dirs
-	provision_mesh_database
-
-	wait_for_tcp "${POSTGRES_HOST}" "${POSTGRES_PORT}" "postgresql container"
-	wait_for_tcp "${MESH_SERVICE}" 4443 "meshcentral container"
-	wait_for_mesh_token
-
-	# Order matters: the seeded local_settings.py must exist before any management
-	# command imports Django settings, because it carries SECRET_KEY.
-	write_generated_settings
-	seed_local_settings
-	seed_app_ini
-
+# Everything that only has to happen on a first run or a version change. Ordering
+# is upstream's and matters: pre_update_tasks before migrate, and
+# generate_json_schemas before collectstatic because it writes into
+# STATICFILES_DIRS.
+function run_full_init {
 	python manage.py pre_update_tasks
 	python manage.py migrate --no-input
-	# Writes into STATICFILES_DIRS, so it has to precede collectstatic.
 	python manage.py generate_json_schemas
 	python manage.py get_webtar_url >"${TACTICAL_DIR}/tmp/web_tar_url"
 	python manage.py collectstatic --no-input
@@ -378,6 +385,60 @@ tactical-init)
 
 	echo "Creating dashboard user if it doesn't exist"
 	echo "from accounts.models import User; User.objects.create_superuser('${TRMM_USER}', 'admin@example.com', '${TRMM_PASS}') if not User.objects.filter(username='${TRMM_USER}').exists() else 0;" | python manage.py shell
+}
+
+# A strict subsequence of run_full_init, in the same relative order. migrate stays
+# in even though it is a no-op round trip, so a hand-applied database change is
+# still caught. get_webtar_url stays because tactical-frontend reads web_tar_url
+# on every start. The nats configs are regenerated because they are derived from
+# the agent list, and clear_redis_celery_locks because the locks are stale by
+# definition after a stop.
+function run_warm_init {
+	python manage.py migrate --no-input
+	python manage.py get_webtar_url >"${TACTICAL_DIR}/tmp/web_tar_url"
+	python manage.py reload_nats
+	python manage.py create_natsapi_conf
+	python manage.py clear_redis_celery_locks
+}
+
+case "$1" in
+tactical-init)
+	if init_is_current; then
+		init_mode=warm
+		echo "State matches this image ($(tr '\n' ' ' <"${TACTICAL_LAYOUT_FILE}")); running the short init."
+	else
+		init_mode=full
+		echo "First run, or layout/version change; running the full init."
+	fi
+
+	test -f "${TACTICAL_READY_FILE}" && rm "${TACTICAL_READY_FILE}"
+
+	ensure_state_dirs
+	provision_mesh_database
+
+	wait_for_tcp "${POSTGRES_HOST}" "${POSTGRES_PORT}" "postgresql container"
+
+	# Only the full path needs MeshCentral itself: initial_mesh_setup opens a
+	# websocket to it. The warm path needs nothing but the token file, which is
+	# already in the tmp volume from the previous run, so it does not wait for a
+	# mesh container that is still booting. That wait is the single largest part
+	# of a restart, because mesh in turn waits on nginx before it listens.
+	if [ "${init_mode}" = full ]; then
+		wait_for_tcp "${MESH_SERVICE}" 4443 "meshcentral container"
+	fi
+	wait_for_mesh_token
+
+	# Order matters: the seeded local_settings.py must exist before any management
+	# command imports Django settings, because it carries SECRET_KEY.
+	write_generated_settings
+	seed_local_settings
+	seed_app_ini
+
+	if [ "${init_mode}" = full ]; then
+		run_full_init
+	else
+		run_warm_init
+	fi
 
 	# init runs as root so it can take ownership of freshly created volumes, which
 	# means everything it just wrote is root-owned: the generated configs, the
@@ -396,7 +457,7 @@ tactical-init)
 		"${TACTICAL_DIR}/api/tacticalrmm/private"
 
 	echo "Creating install ready file"
-	echo 'tactical-init' >"${TACTICAL_READY_FILE}"
+	cp "${TACTICAL_LAYOUT_FILE}" "${TACTICAL_READY_FILE}"
 	chown 1000:1000 "${TACTICAL_READY_FILE}"
 	;;
 
