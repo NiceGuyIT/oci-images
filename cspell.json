@@ -26,6 +26,7 @@
 		"chowns",
 		"clippy",
 		"collectstatic",
+		"conninfo",
 		"connrefused",
 		"coolofftime",
 		"coredns",

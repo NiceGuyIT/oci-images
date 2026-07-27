@@ -88,6 +88,9 @@ COPY --from=source /src/api/tacticalrmm ${TACTICAL_DIR}/api
 COPY --from=scripts /community-scripts ${TACTICAL_DIR}/community-scripts
 COPY --from=venv ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
+# Serializes the startup bootstrap across the Django services, replacing the
+# tactical-init one-shot container.
+COPY pg_lock.py /pg_lock.py
 COPY settings_env.py ${TACTICAL_DIR}/api/tacticalrmm/settings_env.py
 COPY local_settings.py ${TACTICAL_DIR}/api/tacticalrmm/local_settings.py
 # Seeded into the conf volume on first run, then owned by the operator. Kept as a

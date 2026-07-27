@@ -21,6 +21,12 @@
 # api/nats-rmm.conf and api/nats-api.conf are symlinks into the conf directory,
 # so the management commands that write to settings.BASE_DIR land there
 # unmodified.
+#
+# There is no tactical-init service any more. Each Django-bearing service runs the
+# same bootstrap at startup under a PostgreSQL advisory lock (pg_lock.py), so
+# whichever starts first does the work and the rest find it done. Nothing runs as
+# root as a result, which removes the whole class of root-owned-file problems the
+# one-shot container used to create and then chown away.
 
 set -e
 
@@ -81,32 +87,10 @@ EOF
 	exit 1
 fi
 
-# Take ownership of state paths init created or wrote, skipping anything it
-# cannot write. A plain `chown -R` aborts on an operator-supplied read-only bind
-# mount with EROFS, and under set -e that kills init into a restart loop; those
-# files are deliberately supplied and are not init's to own anyway. `chown -f`
-# is not the fix: it silences the message but still exits non-zero.
-function chown_state {
-	find "$@" ! -user 1000 -writable -exec chown 1000:1000 {} +
-}
-
 function wait_for_tcp {
 	local host="$1" port="$2" label="$3"
 	until (echo >/dev/tcp/"${host}"/"${port}") &>/dev/null; do
 		echo "waiting for ${label} to be ready..."
-		sleep 1
-	done
-}
-
-# Fallback only. compose.example.yml gates these services on tactical-init with
-# depends_on/service_completed_successfully, which is an ordering guarantee this
-# poll cannot give: the ready file persists in a volume, so a service that starts
-# before init has deleted it would sail straight past. Upstream's leading
-# "sleep 15" was there to make that window unlikely, and it cost every service up
-# to 25 seconds on every start.
-function check_tactical_ready {
-	until [ -f "${TACTICAL_READY_FILE}" ]; do
-		echo "waiting for init container to finish install or update..."
 		sleep 1
 	done
 }
@@ -185,7 +169,9 @@ PYEOF
 }
 
 # Named volumes are seeded from the image, so these already exist in the default
-# deployment. Recreated here so a bind-mounted empty host directory works too.
+# deployment. Recreated here so a bind-mounted host directory works too, which
+# requires that directory to already be owned by uid 1000: nothing here runs as
+# root any more, so there is no chown to fix it up.
 function ensure_state_dirs {
 	mkdir -p \
 		"${TACTICAL_CONF_DIR}" \
@@ -196,17 +182,6 @@ function ensure_state_dirs {
 		"${TACTICAL_DIR}/api/tacticalrmm/private/exe" \
 		"${TACTICAL_DIR}/api/tacticalrmm/private/log"
 	touch "${TACTICAL_DIR}/api/tacticalrmm/private/log/django_debug.log"
-
-	# Scoped to the mount points, all of which are small. Upstream chowns the
-	# whole tree including the Django source and community-scripts, which is a
-	# large part of its restart cost; the baked tree is already owned correctly.
-	chown_state \
-		"${TACTICAL_CONF_DIR}" \
-		"${TACTICAL_DIR}/tmp" \
-		"${TACTICAL_DIR}/certs" \
-		"${TACTICAL_DIR}/reporting" \
-		"${TACTICAL_DIR}/api/tacticalrmm/private" \
-		"${TACTICAL_DIR}/api/static"
 }
 
 # Written by the mesh container once MeshCentral has minted a login token key.
@@ -387,43 +362,51 @@ function run_full_init {
 	echo "from accounts.models import User; User.objects.create_superuser('${TRMM_USER}', 'admin@example.com', '${TRMM_PASS}') if not User.objects.filter(username='${TRMM_USER}').exists() else 0;" | python manage.py shell
 }
 
-# A strict subsequence of run_full_init, in the same relative order. migrate stays
-# in even though it is a no-op round trip, so a hand-applied database change is
-# still caught. get_webtar_url stays because tactical-frontend reads web_tar_url
-# on every start. The nats configs are regenerated because they are derived from
-# the agent list, and clear_redis_celery_locks because the locks are stale by
-# definition after a stop.
-function run_warm_init {
-	python manage.py migrate --no-input
-	python manage.py get_webtar_url >"${TACTICAL_DIR}/tmp/web_tar_url"
-	python manage.py reload_nats
-	python manage.py create_natsapi_conf
-	python manage.py clear_redis_celery_locks
+# The work that has to happen once per stack start rather than once per upgrade,
+# split by which service owns it so it runs exactly once without any
+# cross-container coordination beyond the lock. Assigning by role is what lets
+# tactical-init go away: a shared one-shot container was previously the only
+# thing expressing "once per stack start".
+#
+# Nothing here is required by every service, so none of it is in the common path:
+# the nats configs and the web tar URL are consumed by tactical-nats and
+# tactical-frontend, and the celery locks only matter to a worker.
+function run_role_tasks {
+	case "$1" in
+	tactical-backend)
+		python manage.py get_webtar_url >"${TACTICAL_DIR}/tmp/web_tar_url"
+		python manage.py reload_nats
+		python manage.py create_natsapi_conf
+		;;
+	tactical-celery)
+		python manage.py clear_redis_celery_locks
+		;;
+	esac
 }
 
-case "$1" in
-tactical-init)
-	if init_is_current; then
-		init_mode=warm
-		echo "State matches this image ($(tr '\n' ' ' <"${TACTICAL_LAYOUT_FILE}")); running the short init."
-	else
-		init_mode=full
-		echo "First run, or layout/version change; running the full init."
-	fi
+# Runs under the advisory lock held by pg_lock.py, so exactly one container is
+# inside this at a time. Idempotent throughout: the second and later containers
+# find the marker current and do nothing but a no-op migrate.
+function bootstrap {
+	local role="$1" mode
 
-	test -f "${TACTICAL_READY_FILE}" && rm "${TACTICAL_READY_FILE}"
+	if init_is_current; then
+		mode=warm
+		echo "State matches this image ($(tr '\n' ' ' <"${TACTICAL_LAYOUT_FILE}")); short bootstrap for ${role}."
+	else
+		mode=full
+		echo "First run, or layout/version change; full bootstrap for ${role}."
+	fi
 
 	ensure_state_dirs
 	provision_mesh_database
 
-	wait_for_tcp "${POSTGRES_HOST}" "${POSTGRES_PORT}" "postgresql container"
-
 	# Only the full path needs MeshCentral itself: initial_mesh_setup opens a
-	# websocket to it. The warm path needs nothing but the token file, which is
-	# already in the tmp volume from the previous run, so it does not wait for a
-	# mesh container that is still booting. That wait is the single largest part
-	# of a restart, because mesh in turn waits on nginx before it listens.
-	if [ "${init_mode}" = full ]; then
+	# websocket to it. Otherwise all that is needed is the token file, already in
+	# the tmp volume from the previous run, so a restart does not wait for a mesh
+	# container that is still booting. That wait is the single largest part of a
+	# cold start, because mesh in turn waits on nginx before it listens.
+	if [ "${mode}" = full ]; then
 		wait_for_tcp "${MESH_SERVICE}" 4443 "meshcentral container"
 	fi
 	wait_for_mesh_token
@@ -434,51 +417,52 @@ tactical-init)
 	seed_local_settings
 	seed_app_ini
 
-	if [ "${init_mode}" = full ]; then
+	if [ "${mode}" = full ]; then
 		run_full_init
+		cp "${TACTICAL_LAYOUT_FILE}" "${TACTICAL_READY_FILE}"
 	else
-		run_warm_init
+		# A no-op round trip when nothing changed, kept so a hand-applied database
+		# change is still caught.
+		python manage.py migrate --no-input
 	fi
 
-	# init runs as root so it can take ownership of freshly created volumes, which
-	# means everything it just wrote is root-owned: the generated configs, the
-	# collectstatic output, and the Django log files the management commands open
-	# (trmm_debug.log in particular, which the backend cannot append to as uid 1000
-	# and which fails the whole uwsgi app load, not just logging). Every state
-	# mount point is covered, and only those: upstream chowns the entire tree
-	# including the Django source and community-scripts, which is a large part of
-	# its restart cost.
-	chown_state \
-		"${TACTICAL_CONF_DIR}" \
-		"${TACTICAL_DIR}/tmp" \
-		"${TACTICAL_DIR}/certs" \
-		"${TACTICAL_DIR}/reporting" \
-		"${TACTICAL_DIR}/api/static" \
-		"${TACTICAL_DIR}/api/tacticalrmm/private"
+	run_role_tasks "${role}"
+}
 
-	echo "Creating install ready file"
-	cp "${TACTICAL_LAYOUT_FILE}" "${TACTICAL_READY_FILE}"
-	chown 1000:1000 "${TACTICAL_READY_FILE}"
+case "$1" in
+# Serialized startup bootstrap, invoked by each service below through pg_lock.py.
+# Not meant to be run directly; use tactical-init for that.
+bootstrap)
+	bootstrap "$2"
+	;;
+
+# Manual re-seed, and the compatibility name for what used to be a compose
+# service: `docker compose run --rm tactical-backend tactical-init`. Takes the
+# same lock, so it is safe to run against a live stack. Forces the full path,
+# since running this at all means asking for the whole sequence.
+tactical-init)
+	export TRMM_FORCE_INIT=1
+	exec python /pg_lock.py "$0" bootstrap tactical-init
 	;;
 
 tactical-backend)
-	check_tactical_ready
+	python /pg_lock.py "$0" bootstrap tactical-backend
 	uwsgi "${TACTICAL_CONF_DIR}/app.ini"
 	;;
 
 tactical-celery)
-	check_tactical_ready
+	python /pg_lock.py "$0" bootstrap tactical-celery
 	celery -A tacticalrmm worker --autoscale=20,2 -l info
 	;;
 
 tactical-celerybeat)
-	check_tactical_ready
+	python /pg_lock.py "$0" bootstrap tactical-celerybeat
 	test -f "${TACTICAL_DIR}/api/celerybeat.pid" && rm "${TACTICAL_DIR}/api/celerybeat.pid"
 	celery -A tacticalrmm beat -l info
 	;;
 
 tactical-websockets)
-	check_tactical_ready
+	python /pg_lock.py "$0" bootstrap tactical-websockets
 	export DJANGO_SETTINGS_MODULE=tacticalrmm.settings
 	uvicorn --host 0.0.0.0 --port 8383 --forwarded-allow-ips='*' tacticalrmm.asgi:application
 	;;

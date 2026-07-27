@@ -131,18 +131,18 @@ cd smartctl_exporter && ./build.nu
 
 [Tactical RMM](https://github.com/amidaware/tacticalrmm) is built from the `tactical-rmm/` directory, which packages
 five custom images plus the stock `postgres:13-alpine` and `redis:6.0-alpine` dependencies. MeshCentral stores its
-data in the shared PostgreSQL server (`MESH_POSTGRES_HOST` defaults to `tactical-postgres`), which `tactical-init`
-provisions automatically; there is no NeDB or MongoDB option. The single shared `tactical-rmm/config.yml` pins the
+data in the shared PostgreSQL server (`MESH_POSTGRES_HOST` defaults to `tactical-postgres`), which the Django services
+provision automatically at startup; there is no NeDB or MongoDB option. The single shared `tactical-rmm/config.yml` pins the
 upstream Tactical RMM release; every image downloads the source tarball at that tag during build, so a version bump
 is a single-line change that rebuilds all five images together.
 
-| Image                  | Purpose                                                                   | Notes                                                                                                                                                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tactical-backend`     | Django API, Celery worker, Celery beat, Daphne websockets, init container | Single image dispatched by the entrypoint via the first argument (`tactical-init`, `tactical-backend`, `tactical-celery`, `tactical-celerybeat`, `tactical-websockets`).                                                                                 |
-| `tactical-frontend`    | Vue.js bundle on `nginx-unprivileged`                                     | The matching `tacticalrmm-web` release is pulled at build time using the `WEB_VERSION` recorded in upstream `settings.py`.                                                                                                                               |
-| `tactical-meshcentral` | MeshCentral remote-access server                                          | The MeshCentral version is pulled from the upstream `MESH_VER` constant in `settings.py`. Stores its data in PostgreSQL only (`MESH_POSTGRES_HOST` defaults to `tactical-postgres`), which `tactical-init` provisions automatically; no NeDB or MongoDB. |
-| `tactical-nats`        | NATS server plus the upstream `nats-api` Go binary under `supervisord`    | Multi-arch aware: selects the upstream-shipped `nats-api` (amd64) or `nats-api-arm64` based on `TARGETARCH`.                                                                                                                                             |
-| `tactical-nginx`       | TLS-terminating reverse proxy                                             | Generates a self-signed wildcard cert at start if `CERT_PUB_KEY` / `CERT_PRIV_KEY` are not provided.                                                                                                                                                     |
+| Image                  | Purpose                                                                | Notes                                                                                                                                                                                                                                                               |
+| ---------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tactical-backend`     | Django API, Celery worker, Celery beat, Daphne websockets              | Single image dispatched by the entrypoint via the first argument (`tactical-backend`, `tactical-celery`, `tactical-celerybeat`, `tactical-websockets`, plus `tactical-init` for a manual re-seed).                                                                  |
+| `tactical-frontend`    | Vue.js bundle on `nginx-unprivileged`                                  | The matching `tacticalrmm-web` release is pulled at build time using the `WEB_VERSION` recorded in upstream `settings.py`.                                                                                                                                          |
+| `tactical-meshcentral` | MeshCentral remote-access server                                       | The MeshCentral version is pulled from the upstream `MESH_VER` constant in `settings.py`. Stores its data in PostgreSQL only (`MESH_POSTGRES_HOST` defaults to `tactical-postgres`), provisioned automatically by the Django startup bootstrap; no NeDB or MongoDB. |
+| `tactical-nats`        | NATS server plus the upstream `nats-api` Go binary under `supervisord` | Multi-arch aware: selects the upstream-shipped `nats-api` (amd64) or `nats-api-arm64` based on `TARGETARCH`.                                                                                                                                                        |
+| `tactical-nginx`       | TLS-terminating reverse proxy                                          | Generates a self-signed wildcard cert at start if `CERT_PUB_KEY` / `CERT_PRIV_KEY` are not provided.                                                                                                                                                                |
 
 Build all five locally (single command):
 
@@ -165,29 +165,50 @@ cp .env.example .env
 docker compose --file compose.example.yml up --detach
 ```
 
-After the first start, watch `tactical-init` until it exits successfully (it creates the Django superuser, runs
-migrations, writes the MeshCentral token, and provisions the MeshCentral PostgreSQL database when `MESH_POSTGRES_HOST`
-is set). Every service that loads Django settings waits on it through
-`depends_on` / `service_completed_successfully`, so nothing starts against a half-migrated database. The web UI is
-served by `tactical-nginx` on `${TRMM_HTTPS_PORT}`.
+On the first start, watch `tactical-backend` until uWSGI reports its workers. There is no separate init container: each
+Django service runs the same bootstrap at startup, and whichever wins the lock creates the Django superuser, runs
+migrations, writes the MeshCentral token and provisions the MeshCentral PostgreSQL database. The web UI is served by
+`tactical-nginx` on `${TRMM_HTTPS_PORT}`.
 
-#### What tactical-init does on a restart
+#### Startup bootstrap
 
-`tactical-init` has two paths, and it says which one it took in its first log line. The full install sequence runs on a
-first run and whenever the image's Tactical RMM version or on-disk layout changes; otherwise it runs a short path and
-finishes in seconds. Upstream re-ran everything on every start, because it wrote the literal string `tactical-init` into
-its ready file and so had no way to tell one case from the other.
+`tactical-backend`, `tactical-celery`, `tactical-celerybeat` and `tactical-websockets` each run the bootstrap before
+their own process, serialized by a PostgreSQL advisory lock. The first one in does the work; the rest block on the lock
+and then find it already done. Each logs which path it took.
+
+The lock is session scoped, so it is held for exactly as long as the holding connection lives. A container that dies
+mid-bootstrap drops its connection, PostgreSQL releases the lock, and the next container proceeds: there is no stale
+lock to clear and no timeout to tune.
+
+The full sequence runs on a first run and whenever the image's Tactical RMM version or on-disk layout changes;
+otherwise a short path runs. Upstream re-ran everything on every start, because it wrote the literal string
+`tactical-init` into its ready file and so had no way to tell one case from the other.
 
 | Step                                                                                                   | Full | Short |
 | ------------------------------------------------------------------------------------------------------ | ---- | ----- |
 | Provision the MeshCentral database, seed missing config, `migrate`                                     | yes  | yes   |
-| `get_webtar_url`, `reload_nats`, `create_natsapi_conf`, `clear_redis_celery_locks`                     | yes  | yes   |
 | `pre_update_tasks`, `generate_json_schemas`, `collectstatic`, `initial_db_setup`, `initial_mesh_setup` | yes  | no    |
 | `load_chocos`, `load_community_scripts`, `create_installer_user`, `post_update_tasks`, superuser       | yes  | no    |
 | Wait for MeshCentral to accept connections                                                             | yes  | no    |
 
 Everything skipped on the short path is either upgrade-shaped or already persisted in a volume or the database.
 `migrate` stays in even though it is normally a no-op round trip, so a hand-applied database change is still caught.
+
+A few steps are owned by one service rather than shared, which is what makes "once per stack start" work without a
+one-shot container to express it: `tactical-backend` writes `web_tar_url` and regenerates the two nats configs, and
+`tactical-celery` clears the stale Redis locks. `tactical-frontend` and `tactical-nats` have no `depends_on` at all;
+they wait for the artifact each actually consumes.
+
+Nothing in the stack runs as root any more. That removes the class of bug where the init container created a file the
+services could not then write, but it also means a bind-mounted host directory must already be owned by uid 1000: there
+is no longer a privileged process to `chown` it for you. Named volumes are unaffected, since Docker seeds them from the
+image, where the mount points are already owned correctly.
+
+To force the full sequence by hand, against a running stack or a stopped one:
+
+```bash
+docker compose --file compose.example.yml run --rm tactical-backend tactical-init
+```
 
 Dropping the MeshCentral wait is most of the saving. Only `initial_mesh_setup` needs the mesh server itself (it opens a
 websocket to it); the short path needs nothing but the login token, which is already in the `tactical-tmp` volume. That
@@ -196,7 +217,7 @@ wait is the longest part of a cold start, because MeshCentral in turn waits on n
 The ready file is a copy of the image's `/opt/tactical/.image-layout` marker, so it records both values that matter.
 Because the marker only changes with `TRMM_VERSION` or the layout revision, rebuilding the image without bumping either
 still takes the short path. Nothing in the full path is needed for that, but `TRMM_FORCE_INIT=1` forces it anyway;
-deleting the ready file from `tactical-tmp` has the same effect.
+deleting the ready file from `tactical-tmp` has the same effect, as does the `tactical-init` command above.
 
 #### On-disk layout
 
@@ -274,7 +295,7 @@ docker run --rm --volume tactical-conf:/conf alpine rm /conf/app.ini
 
 Settings resolve in three layers, each beating the one before it:
 
-1. `conf/generated_settings.py`, rewritten by `tactical-init` on every run from the environment (database credentials,
+1. `conf/generated_settings.py`, rewritten by the startup bootstrap on every run from the environment (database credentials,
    hostnames, the MeshCentral token, certificate and directory paths).
 2. `conf/local_settings.py`, yours. Seeded once with `SECRET_KEY`, a randomized `ADMIN_URL`, `ADMIN_ENABLED` and
    `DEBUG`, then never written again, so anything you put there survives a restart. Bind mount a host file over it,
@@ -318,9 +339,10 @@ x-trmm-settings: &trmm-settings
 
 ##### Settings consumed at init time
 
-Some settings are read while `tactical-init` runs, not while the service runs, and those must be in `tactical-init`'s
-environment instead: anything affecting migrations or superuser creation. `UWSGI_*` used to be the other class and no
-longer is, because `app.ini` is now a file you edit rather than something a management command regenerates.
+Settings read during the startup bootstrap, such as anything affecting migrations or superuser creation, no longer need
+separate placement: every Django service runs that bootstrap, so the block above reaches all of them. `UWSGI_*` used to
+be a special case too and no longer is, because `app.ini` is a file you edit rather than something a management command
+regenerates.
 
 #### Tuning uwsgi
 
