@@ -7,6 +7,16 @@ tacticalrmm:
   # The "v" prefix is added in build.nu when constructing the GitHub tarball URL.
   version: 1.5.1
 
+published:
+  # Version of these images, not of Tactical RMM. Bump it whenever anything in
+  # this directory changes: a Dockerfile, an entrypoint, a config template. The
+  # upstream release above moves independently and is encoded in the tag suffix,
+  # so v1.0.0-trmm1.5.1 reads as "our first packaging of upstream 1.5.1".
+  #
+  # Bumping this also changes the image identity marker the startup bootstrap
+  # compares against, so a bump makes the next start run the full bootstrap.
+  version: v1.0.0
+
 components:
   backend:
     # Published image name. The tag tracks the Tactical RMM upstream version.
