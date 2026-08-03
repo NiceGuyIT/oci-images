@@ -226,9 +226,13 @@ one-shot container to express it: `tactical-backend` writes `web_tar_url` and re
 they wait for the artifact each actually consumes.
 
 Nothing in the stack runs as root any more. That removes the class of bug where the init container created a file the
-services could not then write, but it also means a bind-mounted host directory must already be owned by uid 1000: there
-is no longer a privileged process to `chown` it for you. Named volumes are unaffected, since Docker seeds them from the
-image, where the mount points are already owned correctly.
+services could not then write, but it also means a bind-mounted host directory must already be owned by uid 10000:
+there is no longer a privileged process to `chown` it for you. Named volumes are unaffected, since Docker seeds them
+from the image, where the mount points are already owned correctly.
+
+Every image runs as `10000:10000`, the uid/gid of the host `containers` user these stacks run under, and
+`compose.example.yml` sets the same pair on every service. Deployments built before this change ran as `1000:1000`; see
+the migration note below for moving the volumes over.
 
 To force the full sequence by hand, against a running stack or a stopped one:
 
@@ -273,9 +277,9 @@ exactly where it expects them.
 `tactical-conf` is mounted read-write on the Django services rather than read-only, because `reload_nats()` rewrites
 `nats-rmm.conf` from the running API whenever an agent is added or removed, not only during init.
 
-Every image contains the mount points it consumes, owned by uid 1000. A named volume is seeded from the image path it is
-mounted on, so a path the image lacks would yield an empty root-owned directory that the container, running as uid 1000,
-could not write.
+Every image contains the mount points it consumes, owned by uid 10000. A named volume is seeded from the image path it
+is mounted on, so a path the image lacks would yield an empty root-owned directory that the container, running as uid
+10000, could not write.
 
 #### Migrating an existing deployment
 
@@ -316,6 +320,27 @@ template and its fixed worker pool:
 ```bash
 docker run --rm --volume tactical-conf:/conf alpine rm /conf/app.ini
 ```
+
+#### Migrating a deployment that ran as uid 1000
+
+Images published before `v2.0.0` ran as `1000:1000`. Every state volume is therefore owned by uid 1000, which the new
+user cannot write, so the ownership has to be moved once, with the stack down. `tactical-postgres` is excluded: it has
+no `user:` override and keeps running as the postgres image's own user.
+
+```bash
+cd tactical-rmm
+docker compose --file compose.example.yml down
+
+for vol in tactical-conf tactical-tmp tactical-private tactical-certs tactical-reporting tactical-static \
+	tactical-meshcentral-data tactical-redis; do
+	docker run --rm --volume "${vol}":/vol alpine chown -R 10000:10000 /vol
+done
+
+docker compose --file compose.example.yml up --detach
+```
+
+Bind mounts are yours to `chown -R 10000:10000` on the host; nothing in the stack runs as root, so no container can do
+it for you.
 
 #### Django settings from the environment
 

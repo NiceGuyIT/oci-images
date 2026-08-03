@@ -115,8 +115,8 @@ RUN apt-get update \
 	&& apt-get upgrade -y \
 	&& apt-get install -y --no-install-recommends weasyprint \
 	&& rm -rf /var/lib/apt/lists/* \
-	&& groupadd -g 1000 "${TACTICAL_USER}" \
-	&& useradd -M -d "${TACTICAL_DIR}" -s /bin/bash -u 1000 -g 1000 "${TACTICAL_USER}"
+	&& groupadd -g 10000 "${TACTICAL_USER}" \
+	&& useradd -M -d "${TACTICAL_DIR}" -s /bin/bash -u 10000 -g 10000 "${TACTICAL_USER}"
 
 # Mount points for the state volumes, plus the generated-config symlinks. The two
 # nats configs are written by management commands that open(settings.BASE_DIR/...,
@@ -136,7 +136,7 @@ RUN mkdir -p \
 	&& ln -s ../conf/nats-rmm.conf "${TACTICAL_DIR}/api/nats-rmm.conf" \
 	&& ln -s ../conf/nats-api.conf "${TACTICAL_DIR}/api/nats-api.conf" \
 	&& printf 'layout=%s\ntrmm_version=%s\nimage_version=%s\n' "${TACTICAL_LAYOUT}" "${TRMM_VERSION}" "${IMAGE_VERSION}" > "${TACTICAL_LAYOUT_FILE}" \
-	&& chown -R 1000:1000 "${TACTICAL_DIR}"
+	&& chown -R 10000:10000 "${TACTICAL_DIR}"
 
 WORKDIR ${TACTICAL_DIR}/api
 

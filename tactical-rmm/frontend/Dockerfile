@@ -43,8 +43,8 @@ ENV TACTICAL_READY_FILE=${TACTICAL_DIR}/tmp/tactical.ready
 USER root
 
 RUN deluser --remove-home nginx \
-	&& addgroup -S nginx -g 1000 \
-	&& adduser -S -G nginx -u 1000 nginx \
+	&& addgroup -S nginx -g 10000 \
+	&& adduser -S -G nginx -u 10000 nginx \
 	&& apk add --no-cache bash wget tar grep
 
 SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]

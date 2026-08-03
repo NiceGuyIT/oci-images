@@ -170,7 +170,7 @@ PYEOF
 
 # Named volumes are seeded from the image, so these already exist in the default
 # deployment. Recreated here so a bind-mounted host directory works too, which
-# requires that directory to already be owned by uid 1000: nothing here runs as
+# requires that directory to already be owned by uid 10000: nothing here runs as
 # root any more, so there is no chown to fix it up.
 function ensure_state_dirs {
 	mkdir -p \

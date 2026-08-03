@@ -32,7 +32,12 @@ ENV TACTICAL_DIR=/opt/tactical
 # pg_isready (the entrypoint waits on it before creating accounts, so the mesh
 # server never races an unready PostgreSQL). gettext-envsubst renders config.json
 # from its template; it pulls in only libintl, unlike the full gettext package.
-RUN apk add --no-cache bash postgresql-client gettext-envsubst
+# The base image ships node as uid/gid 1000. Recreate it at 10000 to match the
+# host containers user; the chown below then puts the volume mount points there.
+RUN deluser node \
+	&& addgroup -S node -g 10000 \
+	&& adduser -S -G node -u 10000 -h /home/node -s /bin/sh node \
+	&& apk add --no-cache bash postgresql-client gettext-envsubst
 
 SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
@@ -79,7 +84,7 @@ EOF
 # The two state volume mount points must exist in the image and be owned by the
 # runtime user. A named volume is seeded from the image path it is mounted on, so
 # a path the image lacks yields an empty root-owned directory that this container,
-# running as uid 1000, cannot write.
+# running as uid 10000, cannot write.
 RUN bun install \
 	&& chmod +x /entrypoint.sh \
 	&& mkdir -p /home/node/app/meshcentral-data "${TACTICAL_DIR}/tmp" \

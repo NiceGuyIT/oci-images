@@ -20,8 +20,8 @@ ENV TACTICAL_DIR=/opt/tactical
 USER root
 
 RUN deluser --remove-home nginx \
-	&& addgroup -S nginx -g 1000 \
-	&& adduser -S -G nginx -u 1000 nginx \
+	&& addgroup -S nginx -g 10000 \
+	&& adduser -S -G nginx -u 10000 nginx \
 	&& apk add --no-cache openssl bash \
 	&& chown -R nginx:nginx /etc/nginx
 

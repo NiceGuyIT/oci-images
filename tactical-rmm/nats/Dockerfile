@@ -47,18 +47,18 @@ RUN if [ "${TARGETARCH}" = "arm64" ]; then \
 
 # ${TACTICAL_DIR}/api is where compose mounts the conf volume for this image, and
 # tmp carries the ready file. Both mount points must exist in the image and be
-# owned by uid 1000: a named volume is seeded from the image path it is mounted
+# owned by uid 10000: a named volume is seeded from the image path it is mounted
 # on, so a missing path yields an empty root-owned directory.
 RUN touch /usr/local/bin/config_watcher.sh \
-	&& chown 1000:1000 /usr/local/bin/config_watcher.sh \
+	&& chown 10000:10000 /usr/local/bin/config_watcher.sh \
 	&& mkdir -p /var/log/supervisor /etc/supervisor/conf.d \
 	&& touch /etc/supervisor/conf.d/supervisor.conf \
-	&& chown 1000:1000 /etc/supervisor/conf.d/supervisor.conf \
+	&& chown 10000:10000 /etc/supervisor/conf.d/supervisor.conf \
 	&& mkdir -p "${TACTICAL_DIR}/api" "${TACTICAL_DIR}/tmp" \
-	&& chown -R 1000:1000 "${TACTICAL_DIR}"
+	&& chown -R 10000:10000 "${TACTICAL_DIR}"
 
 EXPOSE 4222 9235
 
-USER 1000
+USER 10000
 
 ENTRYPOINT ["/entrypoint.sh"]

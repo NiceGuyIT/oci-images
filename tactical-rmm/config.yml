@@ -15,7 +15,7 @@ published:
   #
   # Bumping this also changes the image identity marker the startup bootstrap
   # compares against, so a bump makes the next start run the full bootstrap.
-  version: v1.0.0
+  version: v2.0.0
 
 components:
   backend:
