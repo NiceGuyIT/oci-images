@@ -63,10 +63,10 @@ RUN apk add --no-cache git \
 FROM ${BASE_IMAGE}:${BASE_TAG}
 
 ARG TRMM_VERSION
-# Our version for these images, from config.yml published.version. Distinct from
+# Our packaging revision, from config.yml published.revision. Distinct from
 # TRMM_VERSION, which is the upstream release. Recorded in the marker below so a
 # rebuild of the same upstream release still reads as a different image.
-ARG IMAGE_VERSION=unversioned
+ARG IMAGE_REVISION=unversioned
 # Bumped whenever the on-disk layout changes in a way that makes an existing
 # deployment's volumes incompatible. The entrypoint refuses to start when the
 # marker file is missing, which is what a legacy whole-directory mount over
@@ -115,8 +115,8 @@ RUN apt-get update \
 	&& apt-get upgrade -y \
 	&& apt-get install -y --no-install-recommends weasyprint \
 	&& rm -rf /var/lib/apt/lists/* \
-	&& groupadd -g 1000 "${TACTICAL_USER}" \
-	&& useradd -M -d "${TACTICAL_DIR}" -s /bin/bash -u 1000 -g 1000 "${TACTICAL_USER}"
+	&& groupadd -g 10000 "${TACTICAL_USER}" \
+	&& useradd -M -d "${TACTICAL_DIR}" -s /bin/bash -u 10000 -g 10000 "${TACTICAL_USER}"
 
 # Mount points for the state volumes, plus the generated-config symlinks. The two
 # nats configs are written by management commands that open(settings.BASE_DIR/...,
@@ -135,8 +135,8 @@ RUN mkdir -p \
 	&& touch "${TACTICAL_DIR}/api/tacticalrmm/private/log/django_debug.log" \
 	&& ln -s ../conf/nats-rmm.conf "${TACTICAL_DIR}/api/nats-rmm.conf" \
 	&& ln -s ../conf/nats-api.conf "${TACTICAL_DIR}/api/nats-api.conf" \
-	&& printf 'layout=%s\ntrmm_version=%s\nimage_version=%s\n' "${TACTICAL_LAYOUT}" "${TRMM_VERSION}" "${IMAGE_VERSION}" > "${TACTICAL_LAYOUT_FILE}" \
-	&& chown -R 1000:1000 "${TACTICAL_DIR}"
+	&& printf 'layout=%s\ntrmm_version=%s\nimage_revision=%s\n' "${TACTICAL_LAYOUT}" "${TRMM_VERSION}" "${IMAGE_REVISION}" > "${TACTICAL_LAYOUT_FILE}" \
+	&& chown -R 10000:10000 "${TACTICAL_DIR}"
 
 WORKDIR ${TACTICAL_DIR}/api
 

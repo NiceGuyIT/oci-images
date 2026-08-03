@@ -11,6 +11,10 @@
 # an empty string if you have built the images locally with `./build.nu base`
 # in each tactical-* directory and want to use those local tags directly.
 #
+# Every service runs as 10000:10000, the uid/gid of the host `containers` user.
+# The images bake their mount points at that ownership; a stack that ran as
+# 1000:1000 needs a one-time chown of its volumes, per the README migration note.
+#
 # The Django tree is baked into the backend image at /opt/tactical and is NOT a
 # volume. Mounting anything over /opt/tactical hides it, and the entrypoint
 # aborts with a pointer to the migration instructions if it detects that. Only
@@ -119,7 +123,7 @@ services:
 
   tactical-redis:
     image: redis:6.0-alpine
-    user: 1000:1000
+    user: 10000:10000
     command: redis-server
     restart: always
     volumes:
@@ -129,7 +133,7 @@ services:
 
   tactical-nats:
     image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-nats:${VERSION}
-    user: 1000:1000
+    user: 10000:10000
     restart: always
     environment:
       API_HOST: ${API_HOST}
@@ -148,7 +152,7 @@ services:
 
   tactical-meshcentral:
     image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-meshcentral:${VERSION}
-    user: 1000:1000
+    user: 10000:10000
     restart: always
     environment:
       MESH_HOST: ${MESH_HOST}
@@ -176,7 +180,7 @@ services:
 
   tactical-frontend:
     image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-frontend:${VERSION}
-    user: 1000:1000
+    user: 10000:10000
     restart: always
     environment:
       API_HOST: ${API_HOST}
@@ -189,7 +193,7 @@ services:
 
   tactical-backend:
     image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-backend:${VERSION}
-    user: 1000:1000
+    user: 10000:10000
     command:
       - tactical-backend
     restart: always
@@ -213,7 +217,7 @@ services:
 
   tactical-websockets:
     image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-backend:${VERSION}
-    user: 1000:1000
+    user: 10000:10000
     command:
       - tactical-websockets
     restart: always
@@ -230,7 +234,7 @@ services:
 
   tactical-celery:
     image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-backend:${VERSION}
-    user: 1000:1000
+    user: 10000:10000
     command:
       - tactical-celery
     restart: always
@@ -247,7 +251,7 @@ services:
 
   tactical-celerybeat:
     image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-backend:${VERSION}
-    user: 1000:1000
+    user: 10000:10000
     command:
       - tactical-celerybeat
     restart: always
@@ -267,7 +271,7 @@ services:
   # service that generates the self-signed pair when none is supplied.
   tactical-nginx:
     image: ${IMAGE_REPO-ghcr.io/niceguyit/}tactical-nginx:${VERSION}
-    user: 1000:1000
+    user: 10000:10000
     restart: always
     environment:
       APP_HOST: ${APP_HOST}

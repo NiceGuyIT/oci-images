@@ -8,29 +8,24 @@
 #
 # Valid component names are read from config.yml (components.<name>).
 #
-# Tags encode our version first and the upstream release as a suffix, matching
-# the rust-builder-* images: v1.0.0-trmm1.5.1. Publishing under the upstream
-# version alone made two different builds of our packaging indistinguishable.
+# Tags name the upstream release first and our packaging revision second, the way
+# distribution packages are versioned: trmm1.5.1-2 is our second packaging of
+# upstream 1.5.1. Publishing under the upstream version alone made two different
+# builds of our packaging indistinguishable.
 
-# Full tag set for a build: exact version, the moving minor and major aliases,
-# and latest both with and without the upstream suffix. Same shape as
-# rust-builder-glibc/build.nu.
+# Full tag set for a build: the exact tag, the upstream release on its own as the
+# moving newest-packaging tag, and latest.
 def image-tags [
-	published_version: string	# Our version, e.g. v1.0.0
+	published_revision: string	# Our packaging revision, e.g. 2
 	trmm_version: string		# Upstream release, e.g. 1.5.1
 ]: [nothing -> list<string>] {
-	let suffix = $"trmm($trmm_version)"
-	let parts = ($published_version | split row '.')
+	let upstream = $"trmm($trmm_version)"
 
-	# uniq because a version shorter than major.minor.patch collapses the aliases
-	# onto each other, and a repeated tag would be pushed twice.
 	[
-		$"($published_version)-($suffix)"
-		$"($parts | first 2 | str join '.')-($suffix)"
-		$"($parts | first 1 | str join)-($suffix)"
-		$"latest-($suffix)"
+		$"($upstream)-($published_revision)"
+		$upstream
 		'latest'
-	] | uniq
+	]
 }
 
 def build-component [
@@ -47,9 +42,9 @@ def build-component [
 
 	let comp = ($config.components | get $component)
 	let trmm_version = $config.tacticalrmm.version
-	let published_version = $config.published.version
+	let published_revision = ($config.published.revision | into string)
 	let image_name = $comp.image_name
-	let tags = (image-tags $published_version $trmm_version)
+	let tags = (image-tags $published_revision $trmm_version)
 	let tag_args = ($tags | each {|t| ['--tag' $"($image_name):($t)"]} | flatten)
 
 	let context = ($env.FILE_PWD | path join $component)
@@ -57,7 +52,7 @@ def build-component [
 	log info $"Building ($image_name) from ($context) with tags: ($tags | str join ', ')"
 	(^docker buildx build
 		--build-arg $"TRMM_VERSION=($trmm_version)"
-		--build-arg $"IMAGE_VERSION=($published_version)"
+		--build-arg $"IMAGE_REVISION=($published_revision)"
 		--build-arg $"BASE_IMAGE=($comp.base_image)"
 		--build-arg $"BASE_TAG=($comp.base_tag)"
 		...$tag_args

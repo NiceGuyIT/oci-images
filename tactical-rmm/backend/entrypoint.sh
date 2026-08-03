@@ -170,7 +170,7 @@ PYEOF
 
 # Named volumes are seeded from the image, so these already exist in the default
 # deployment. Recreated here so a bind-mounted host directory works too, which
-# requires that directory to already be owned by uid 1000: nothing here runs as
+# requires that directory to already be owned by uid 10000: nothing here runs as
 # root any more, so there is no chown to fix it up.
 function ensure_state_dirs {
 	mkdir -p \
@@ -327,10 +327,10 @@ function seed_app_ini {
 # skipped. Upstream writes the literal string "tactical-init" here, which carries
 # no such information, so it re-ran everything on every start.
 #
-# The marker carries the layout revision, the upstream release and our own image
-# version, so any released change to these images moves it and the next start
+# The marker carries the layout revision, the upstream release and our packaging
+# revision, so any released change to these images moves it and the next start
 # runs the full bootstrap. TRMM_FORCE_INIT=1 still forces it for a local rebuild
-# that did not bump config.yml published.version, which beats telling people to
+# that did not bump config.yml published.revision, which beats telling people to
 # delete a file out of a named volume.
 function init_is_current {
 	[ "${TRMM_FORCE_INIT}" = "1" ] && return 1
