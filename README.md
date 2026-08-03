@@ -146,28 +146,31 @@ is a single-line change that rebuilds all five images together.
 
 #### Tag scheme
 
-Two versions move independently, so the tag carries both: ours first, then the upstream release it packages. Same
-shape as the `rust-builder-*` images.
+Two versions move independently, so the tag carries both, ordered the way a distribution package is versioned: the
+upstream release first, then our packaging revision of it.
 
 ```
-tactical-backend:v1.0.0-trmm1.5.1
-tactical-backend:v1.0-trmm1.5.1
-tactical-backend:v1-trmm1.5.1
-tactical-backend:latest-trmm1.5.1
+tactical-backend:trmm1.5.1-2
+tactical-backend:trmm1.5.1
 tactical-backend:latest
 ```
 
-`v1.0.0-trmm1.5.1` reads as "our first packaging of upstream 1.5.1". A change to these images with no upstream change
-becomes `v1.0.1-trmm1.5.1`; an upstream bump with no packaging change becomes `v1.0.0-trmm1.5.2`. Pin the full version
-in production. `latest-trmm1.5.1` is the newest packaging of one upstream release, which is the useful moving tag when
-you want our fixes but not an upstream upgrade.
+`trmm1.5.1-2` reads as "our second packaging of upstream 1.5.1". A change to these images with no upstream change
+becomes `trmm1.5.1-3`; an upstream bump resets the revision, giving `trmm1.5.2-1`. Pin the full tag in production.
+`trmm1.5.1` on its own is the newest packaging of one upstream release, which is the useful moving tag when you want
+our fixes but not an upstream upgrade.
 
-`tactical-rmm/config.yml` holds both: `tacticalrmm.version` for upstream and `published.version` for ours. Bump
-`published.version` whenever anything in the directory changes, a Dockerfile, an entrypoint or a config template. All
-five images share the one number, since they are always built and released as a set.
+The revision carries no semver meaning and takes no `v` prefix; it is a counter, so there is never a question of which
+half of the tag is ours and which is upstream. Images published before this scheme used the reverse order,
+`v1.0.0-trmm1.5.1`.
+
+`tactical-rmm/config.yml` holds both: `tacticalrmm.version` for upstream and `published.revision` for ours. Increment
+`published.revision` whenever anything in the directory changes, a Dockerfile, an entrypoint or a config template, and
+reset it to 1 when `tacticalrmm.version` moves. All five images share the one number, since they are always built and
+released as a set.
 
 Publishing under the upstream version alone, as these images previously did, made two different builds of our packaging
-indistinguishable. That is why the layout guard and `TRMM_FORCE_INIT` exist; the image version is recorded in
+indistinguishable. That is why the layout guard and `TRMM_FORCE_INIT` exist; the packaging revision is recorded in
 `/opt/tactical/.image-layout`, so a bump now also makes the next start run the full bootstrap on its own.
 
 Build all five locally (single command):
@@ -244,8 +247,8 @@ Dropping the MeshCentral wait is most of the saving. Only `initial_mesh_setup` n
 websocket to it); the short path needs nothing but the login token, which is already in the `tactical-tmp` volume. That
 wait is the longest part of a cold start, because MeshCentral in turn waits on nginx before it listens.
 
-The ready file is a copy of the image's `/opt/tactical/.image-layout` marker, so it records both values that matter.
-Because the marker only changes with `TRMM_VERSION` or the layout revision, rebuilding the image without bumping either
+The ready file is a copy of the image's `/opt/tactical/.image-layout` marker, so it records every value that matters:
+the layout revision, `TRMM_VERSION` and the packaging revision. Rebuilding the image without bumping any of the three
 still takes the short path. Nothing in the full path is needed for that, but `TRMM_FORCE_INIT=1` forces it anyway;
 deleting the ready file from `tactical-tmp` has the same effect, as does the `tactical-init` command above.
 
@@ -323,8 +326,8 @@ docker run --rm --volume tactical-conf:/conf alpine rm /conf/app.ini
 
 #### Migrating a deployment that ran as uid 1000
 
-Images published before `v2.0.0` ran as `1000:1000`. Every state volume is therefore owned by uid 1000, which the new
-user cannot write, so the ownership has to be moved once, with the stack down. `tactical-postgres` is excluded: it has
+Images published before `trmm1.5.1-2` ran as `1000:1000`. Every state volume is therefore owned by uid 1000, which the
+new user cannot write, so the ownership has to be moved once, with the stack down. `tactical-postgres` is excluded: it has
 no `user:` override and keeps running as the postgres image's own user.
 
 ```bash

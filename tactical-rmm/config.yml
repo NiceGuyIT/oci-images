@@ -8,14 +8,14 @@ tacticalrmm:
   version: 1.5.1
 
 published:
-  # Version of these images, not of Tactical RMM. Bump it whenever anything in
-  # this directory changes: a Dockerfile, an entrypoint, a config template. The
-  # upstream release above moves independently and is encoded in the tag suffix,
-  # so v1.0.0-trmm1.5.1 reads as "our first packaging of upstream 1.5.1".
+  # Packaging revision of these images, the way a distribution package carries
+  # one: trmm1.5.1-2 is our second packaging of upstream 1.5.1. Increment it
+  # whenever anything in this directory changes (a Dockerfile, an entrypoint, a
+  # config template) and reset it to 1 when the upstream release above moves.
   #
   # Bumping this also changes the image identity marker the startup bootstrap
   # compares against, so a bump makes the next start run the full bootstrap.
-  version: v2.0.0
+  revision: 2
 
 components:
   backend:
