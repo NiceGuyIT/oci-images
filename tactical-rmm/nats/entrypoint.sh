@@ -18,6 +18,10 @@ set -e
 
 : "${DEV:=0}"
 : "${NATS_CONFIG_CHECK_INTERVAL:=1}"
+# Seconds to wait for the backend bootstrap that writes the two configs below.
+# Bounded so a backend that never finishes shows up here as a failed container
+# rather than one that sits in "waiting" forever; restart: always retries.
+: "${TRMM_WAIT_TIMEOUT:=600}"
 
 if [ "${DEV}" = 1 ]; then
 	NATS_CONFIG=/workspace/api/tacticalrmm/nats-rmm.conf
@@ -27,9 +31,21 @@ else
 	NATS_API_CONFIG="${TACTICAL_DIR}/api/nats-api.conf"
 fi
 
+waited=0
 until [ -s "${NATS_CONFIG}" ] && [ -s "${NATS_API_CONFIG}" ]; do
+	if [ "${waited}" -ge "${TRMM_WAIT_TIMEOUT}" ]; then
+		cat >&2 <<EOF
+FATAL: ${NATS_CONFIG} or ${NATS_API_CONFIG} was still empty or missing after ${TRMM_WAIT_TIMEOUT}s.
+
+tactical-backend writes both during its startup bootstrap; check that container's
+logs. Raise TRMM_WAIT_TIMEOUT if a first run on this host legitimately takes
+longer than that.
+EOF
+		exit 1
+	fi
 	echo "waiting for tactical-backend to write ${NATS_CONFIG}..."
 	sleep 1
+	waited=$((waited + 1))
 done
 
 config_watcher="$(
