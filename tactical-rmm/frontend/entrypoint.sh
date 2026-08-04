@@ -18,10 +18,28 @@ set -e
 
 URL_PATH="${TACTICAL_DIR}/tmp/web_tar_url"
 
+# Seconds to wait for the backend bootstrap that writes the file above. Bounded
+# so a backend that never finishes shows up here as a failed container rather
+# than one that sits in "waiting" forever; restart: always retries.
+: "${TRMM_WAIT_TIMEOUT:=600}"
+
 function check_tactical_ready {
+	local waited=0
+
 	until [ -s "${URL_PATH}" ]; do
+		if [ "${waited}" -ge "${TRMM_WAIT_TIMEOUT}" ]; then
+			cat >&2 <<EOF
+FATAL: ${URL_PATH} was still empty or missing after ${TRMM_WAIT_TIMEOUT}s.
+
+tactical-backend writes it during its startup bootstrap; check that container's
+logs. Raise TRMM_WAIT_TIMEOUT if a first run on this host legitimately takes
+longer than that.
+EOF
+			exit 1
+		fi
 		echo "waiting for tactical-backend to write ${URL_PATH}..."
 		sleep 1
+		waited=$((waited + 1))
 	done
 }
 

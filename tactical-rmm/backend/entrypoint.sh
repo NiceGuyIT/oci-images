@@ -44,6 +44,13 @@ set -e
 # 1 runs the full init even when the recorded state already matches this image.
 : "${TRMM_FORCE_INIT:=0}"
 
+# Seconds any wait on another container's artifact may take before this service
+# gives up and exits. Every service sets restart: always, so a bounded failure is
+# a visible retry loop; an unbounded one is a deadlock that surfaces layers away.
+# Sized to clear a first-run bootstrap (collectstatic, community scripts, mesh
+# setup), which is the longest thing anything here waits on.
+: "${TRMM_WAIT_TIMEOUT:=600}"
+
 : "${TRMM_USER:=tactical}"
 : "${TRMM_PASS:=tactical}"
 : "${POSTGRES_HOST:=tactical-postgres}"
@@ -88,10 +95,20 @@ EOF
 fi
 
 function wait_for_tcp {
-	local host="$1" port="$2" label="$3"
+	local host="$1" port="$2" label="$3" waited=0
 	until (echo >/dev/tcp/"${host}"/"${port}") &>/dev/null; do
+		if [ "${waited}" -ge "${TRMM_WAIT_TIMEOUT}" ]; then
+			cat >&2 <<EOF
+FATAL: ${label} did not accept a connection on ${host}:${port} within ${TRMM_WAIT_TIMEOUT}s.
+
+Check that container's logs. Exiting so this restarts and stays visible instead
+of blocking the startup bootstrap; raise TRMM_WAIT_TIMEOUT if the host is slow.
+EOF
+			exit 1
+		fi
 		echo "waiting for ${label} to be ready..."
 		sleep 1
+		waited=$((waited + 1))
 	done
 }
 
@@ -187,10 +204,30 @@ function ensure_state_dirs {
 # Written by the mesh container once MeshCentral has minted a login token key.
 # Upstream reads it with a bare cat, so a mesh container that never got that far
 # kills init under set -e with an opaque "No such file or directory".
+#
+# Bounded, because everything after it (generated settings, migrate, the whole
+# init) is behind this wait, and this bootstrap holds the advisory lock the other
+# Django services queue on. Unbounded, one missing file stalls four containers
+# and reports itself as a missing database table.
 function wait_for_mesh_token {
-	until [ -s "${TACTICAL_DIR}/tmp/mesh_token" ]; do
-		echo "waiting for tactical-meshcentral to write ${TACTICAL_DIR}/tmp/mesh_token..."
+	local token_file="${TACTICAL_DIR}/tmp/mesh_token" waited=0
+
+	until [ -s "${token_file}" ]; do
+		if [ "${waited}" -ge "${TRMM_WAIT_TIMEOUT}" ]; then
+			cat >&2 <<EOF
+FATAL: ${token_file} was still empty or missing after ${TRMM_WAIT_TIMEOUT}s.
+
+tactical-meshcentral writes it from \`meshcentral --logintokenkey\` and exits
+non-zero when that fails, so check its logs. Everything in this bootstrap after
+this point (generated settings, migrate, the full init) needs the token, and the
+other Django services are waiting on the advisory lock held here, so this exits
+rather than stalling the whole stack.
+EOF
+			exit 1
+		fi
+		echo "waiting for tactical-meshcentral to write ${token_file}..."
 		sleep 1
+		waited=$((waited + 1))
 	done
 }
 
@@ -338,6 +375,16 @@ function init_is_current {
 	cmp --silent "${TACTICAL_READY_FILE}" "${TACTICAL_LAYOUT_FILE}"
 }
 
+# tactical-frontend polls this file, so it is written through a temp file and
+# renamed. A plain redirect truncates first, which that poller can observe as an
+# empty file (it waits, harmless) or a partial URL (it fetches garbage).
+function write_web_tar_url {
+	local target="${TACTICAL_DIR}/tmp/web_tar_url"
+
+	python manage.py get_webtar_url >"${target}.tmp"
+	mv "${target}.tmp" "${target}"
+}
+
 # Everything that only has to happen on a first run or a version change. Ordering
 # is upstream's and matters: pre_update_tasks before migrate, and
 # generate_json_schemas before collectstatic because it writes into
@@ -346,7 +393,7 @@ function run_full_init {
 	python manage.py pre_update_tasks
 	python manage.py migrate --no-input
 	python manage.py generate_json_schemas
-	python manage.py get_webtar_url >"${TACTICAL_DIR}/tmp/web_tar_url"
+	write_web_tar_url
 	python manage.py collectstatic --no-input
 	python manage.py initial_db_setup
 	python manage.py initial_mesh_setup
@@ -374,7 +421,7 @@ function run_full_init {
 function run_role_tasks {
 	case "$1" in
 	tactical-backend)
-		python manage.py get_webtar_url >"${TACTICAL_DIR}/tmp/web_tar_url"
+		write_web_tar_url
 		python manage.py reload_nats
 		python manage.py create_natsapi_conf
 		;;

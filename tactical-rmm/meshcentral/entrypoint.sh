@@ -22,8 +22,13 @@ set -e
 # MeshCentral cannot parse.
 set -a
 
+: "${TACTICAL_DIR:=/opt/tactical}"
 : "${MESH_USER:=meshcentral}"
 : "${MESH_PASS:=meshcentralpass}"
+# Seconds either wait below may take before this container gives up and exits.
+# restart: always turns that into a visible retry loop; hanging forever hides the
+# failure and blocks every service waiting on the mesh token.
+: "${TRMM_WAIT_TIMEOUT:=600}"
 : "${MESH_DATA_DIR:=/home/node/app/meshcentral-data}"
 : "${MESH_TEMPLATE_DIR:=/home/node/app/templates}"
 : "${NGINX_HOST_IP:=tactical-nginx}"
@@ -104,27 +109,51 @@ fi
 # createaccount below would fail with 28P01. A real authenticated SELECT as the mesh
 # role against the mesh database only succeeds once tactical-init has finished, which
 # breaks the init/mesh ordering without a compose dependency cycle.
+waited=0
 until PGPASSWORD="${MESH_POSTGRES_PASS}" psql --host="${MESH_POSTGRES_HOST}" --port="${MESH_POSTGRES_PORT}" --username="${MESH_POSTGRES_USER}" --dbname="${MESH_POSTGRES_DATABASE}" --no-password --tuples-only --command='SELECT 1' &>/dev/null; do
-  echo "waiting for meshcentral database to be provisioned by tactical-init..."
+  if [ "${waited}" -ge "${TRMM_WAIT_TIMEOUT}" ]; then
+    echo "FATAL: database ${MESH_POSTGRES_DATABASE} on ${MESH_POSTGRES_HOST}:${MESH_POSTGRES_PORT} was not usable as ${MESH_POSTGRES_USER} within ${TRMM_WAIT_TIMEOUT}s." >&2
+    echo "The Django startup bootstrap provisions it; check the tactical-backend logs." >&2
+    exit 1
+  fi
+  echo "waiting for meshcentral database to be provisioned by the Django bootstrap..."
   sleep 5
+  waited=$((waited + 5))
 done
 
 node node_modules/meshcentral --createaccount "${MESH_USER}" --pass "${MESH_PASS}" --email example@example.com
 node node_modules/meshcentral --adminaccount "${MESH_USER}"
 
-if [ ! -f "${TACTICAL_DIR}/tmp/mesh_token" ]; then
+# Every Django service blocks until this file is non-empty, so the guard here has
+# to be -s and not -f: a zero-byte token left by an earlier failed run would
+# otherwise never be regenerated and would deadlock the whole stack.
+mesh_token_file="${TACTICAL_DIR}/tmp/mesh_token"
+
+if [ ! -s "${mesh_token_file}" ]; then
   mesh_token=$(node node_modules/meshcentral --logintokenkey)
 
-  if [[ ${#mesh_token} -eq 160 ]]; then
-    echo "${mesh_token}" >"${TACTICAL_DIR}/tmp/mesh_token"
-  else
-    echo "Failed to generate mesh token. Fix the error and restart the mesh container"
+  if [ ${#mesh_token} -ne 160 ]; then
+    echo "FATAL: meshcentral --logintokenkey returned ${#mesh_token} characters, expected 160." >&2
+    echo "Exiting: the Django services wait on ${mesh_token_file}, so continuing would leave them blocked." >&2
+    exit 1
   fi
+
+  # Same directory, so the rename is atomic and a reader never sees a partial
+  # token or the truncated file a failed write would leave behind.
+  printf '%s\n' "${mesh_token}" >"${mesh_token_file}.tmp"
+  mv "${mesh_token_file}.tmp" "${mesh_token_file}"
 fi
 
+waited=0
 until (echo >/dev/tcp/"${NGINX_HOST_IP}"/"${NGINX_HOST_PORT}") &>/dev/null; do
+  if [ "${waited}" -ge "${TRMM_WAIT_TIMEOUT}" ]; then
+    echo "FATAL: ${NGINX_HOST_IP}:${NGINX_HOST_PORT} did not accept a connection within ${TRMM_WAIT_TIMEOUT}s." >&2
+    echo "Check the tactical-nginx logs; exiting so this restarts rather than sitting here." >&2
+    exit 1
+  fi
   echo "waiting for nginx to start..."
   sleep 5
+  waited=$((waited + 5))
 done
 
 node node_modules/meshcentral

@@ -228,6 +228,14 @@ one-shot container to express it: `tactical-backend` writes `web_tar_url` and re
 `tactical-celery` clears the stale Redis locks. `tactical-frontend` and `tactical-nats` have no `depends_on` at all;
 they wait for the artifact each actually consumes.
 
+Every one of those waits is bounded by `TRMM_WAIT_TIMEOUT` (600 seconds by default), and expiry exits the container
+with a message naming the artifact and the service that writes it. Since every service sets `restart: always`, that
+turns a producer which never delivers into a visible retry loop rather than a container parked forever. Producers hold
+up their end: `mesh_token` and `web_tar_url` are written to a temporary file and renamed, so a poller never reads a
+half-written value, and `tactical-meshcentral` exits non-zero when `meshcentral --logintokenkey` fails instead of
+starting up healthy without the file every Django service is blocked on. Raise the timeout if a first run on a slow
+host legitimately needs longer.
+
 Nothing in the stack runs as root any more. That removes the class of bug where the init container created a file the
 services could not then write, but it also means a bind-mounted host directory must already be owned by uid 10000:
 there is no longer a privileged process to `chown` it for you. Named volumes are unaffected, since Docker seeds them
