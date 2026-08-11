@@ -16,7 +16,7 @@ ARG DEBIAN_VARIANT=trixie
 
 FROM rust:${RUST_VERSION}-slim-${DEBIAN_VARIANT}
 
-ARG DIOXUS_CLI_VERSION=0.7.7
+ARG DIOXUS_CLI_VERSION=0.8.0-alpha.1
 
 # Native packages, alphabetical for diff-friendliness.
 RUN apt-get update && apt-get install --yes --no-install-recommends \
@@ -80,6 +80,9 @@ RUN curl --fail --location --silent --show-error --retry 3 --retry-delay 2 --ret
 
 # dioxus-cli pinned (must match the dioxus crate version in consumer
 # Cargo.toml files; bump in config.yml when the crate version moves).
+# The `dx --version` assertion fails the build if binstall resolved a
+# different version than the pin (e.g. a fallback source build of another rev).
 RUN cargo binstall dioxus-cli@${DIOXUS_CLI_VERSION} --no-confirm \
+    && dx --version | grep --quiet --fixed-strings "${DIOXUS_CLI_VERSION}" \
     && cargo binstall cargo-watch --no-confirm \
     && cargo binstall cargo-chef --no-confirm
