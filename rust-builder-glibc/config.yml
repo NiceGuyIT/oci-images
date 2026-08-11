@@ -13,9 +13,11 @@ debian:
 dioxus:
   # Pinned dioxus-cli version installed in the image. Must match the dioxus
   # crate version pinned in consumer Cargo.toml files.
-  version: "0.7.7"
+  version: "0.8.0-alpha.1"
 
 published:
   # Published image version. Bump when any layer changes.
-  version: v1.0.1
+  # v1.1.0 moves dx 0.7.7 -> 0.8.0-alpha.1; 0.7 consumers stay on the
+  # v1.0.1-* tags, which every consumer pins exactly.
+  version: v1.1.0
   name: rust-builder-glibc
