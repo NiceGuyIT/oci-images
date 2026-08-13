@@ -1,6 +1,6 @@
 ARG TRMM_VERSION
 ARG BASE_IMAGE=python
-ARG BASE_TAG=3.11.8-slim
+ARG BASE_TAG=3.12.13-slim
 # uv replaces pip as the Python package installer (faster resolution/installs).
 # The binary is statically linked (musl) so it runs on the Debian-slim base.
 ARG UV_IMAGE=ghcr.io/astral-sh/uv
