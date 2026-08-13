@@ -47,6 +47,14 @@ def build-component [
 	let tags = (image-tags $published_revision $trmm_version)
 	let tag_args = ($tags | each {|t| ['--tag' $"($image_name):($t)"]} | flatten)
 
+	# Optional per-component build args from config.yml. Only the component that
+	# declares one gets it, so the others do not warn about an unconsumed arg.
+	let extra_args = if ('build_args' in ($comp | columns)) {
+		$comp.build_args | transpose name value | each {|a| ['--build-arg' $"($a.name)=($a.value)"]} | flatten
+	} else {
+		[]
+	}
+
 	let context = ($env.FILE_PWD | path join $component)
 
 	log info $"Building ($image_name) from ($context) with tags: ($tags | str join ', ')"
@@ -55,6 +63,7 @@ def build-component [
 		--build-arg $"IMAGE_REVISION=($published_revision)"
 		--build-arg $"BASE_IMAGE=($comp.base_image)"
 		--build-arg $"BASE_TAG=($comp.base_tag)"
+		...$extra_args
 		...$tag_args
 		--load
 		$context)

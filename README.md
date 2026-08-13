@@ -133,16 +133,17 @@ cd smartctl_exporter && ./build.nu
 five custom images plus the stock `postgres:13-alpine` and `redis:6.0-alpine` dependencies. MeshCentral stores its
 data in the shared PostgreSQL server (`MESH_POSTGRES_HOST` defaults to `tactical-postgres`), which the Django services
 provision automatically at startup; there is no NeDB or MongoDB option. The single shared `tactical-rmm/config.yml` pins the
-upstream Tactical RMM release; every image downloads the source tarball at that tag during build, so a version bump
-is a single-line change that rebuilds all five images together.
+upstream Tactical RMM release; four of the five images download the source tarball at that tag during build, so a
+version bump is a single-line change that rebuilds all five images together. MeshCentral is the exception: it carries
+its own pin in the same file, described in the table below.
 
-| Image                  | Purpose                                                                | Notes                                                                                                                                                                                                                                                               |
-| ---------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tactical-backend`     | Django API, Celery worker, Celery beat, Daphne websockets              | Single image dispatched by the entrypoint via the first argument (`tactical-backend`, `tactical-celery`, `tactical-celerybeat`, `tactical-websockets`, plus `tactical-init` for a manual re-seed).                                                                  |
-| `tactical-frontend`    | Vue.js bundle on `nginx-unprivileged`                                  | The matching `tacticalrmm-web` release is pulled at build time using the `WEB_VERSION` recorded in upstream `settings.py`.                                                                                                                                          |
-| `tactical-meshcentral` | MeshCentral remote-access server                                       | The MeshCentral version is pulled from the upstream `MESH_VER` constant in `settings.py`. Stores its data in PostgreSQL only (`MESH_POSTGRES_HOST` defaults to `tactical-postgres`), provisioned automatically by the Django startup bootstrap; no NeDB or MongoDB. |
-| `tactical-nats`        | NATS server plus the upstream `nats-api` Go binary under `supervisord` | Multi-arch aware: selects the upstream-shipped `nats-api` (amd64) or `nats-api-arm64` based on `TARGETARCH`.                                                                                                                                                        |
-| `tactical-nginx`       | TLS-terminating reverse proxy                                          | Generates a self-signed wildcard cert at start if `CERT_PUB_KEY` / `CERT_PRIV_KEY` are not provided.                                                                                                                                                                |
+| Image                  | Purpose                                                                | Notes                                                                                                                                                                                                                                                                                                                                |
+| ---------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tactical-backend`     | Django API, Celery worker, Celery beat, Daphne websockets              | Single image dispatched by the entrypoint via the first argument (`tactical-backend`, `tactical-celery`, `tactical-celerybeat`, `tactical-websockets`, plus `tactical-init` for a manual re-seed).                                                                                                                                   |
+| `tactical-frontend`    | Vue.js bundle on `nginx-unprivileged`                                  | The matching `tacticalrmm-web` release is pulled at build time using the `WEB_VERSION` recorded in upstream `settings.py`.                                                                                                                                                                                                           |
+| `tactical-meshcentral` | MeshCentral remote-access server                                       | The MeshCentral version is pinned in `config.yml` as `components.meshcentral.build_args.MESH_VERSION`, so it moves independently of `tacticalrmm.version`. Stores its data in PostgreSQL only (`MESH_POSTGRES_HOST` defaults to `tactical-postgres`), provisioned automatically by the Django startup bootstrap; no NeDB or MongoDB. |
+| `tactical-nats`        | NATS server plus the upstream `nats-api` Go binary under `supervisord` | Multi-arch aware: selects the upstream-shipped `nats-api` (amd64) or `nats-api-arm64` based on `TARGETARCH`.                                                                                                                                                                                                                         |
+| `tactical-nginx`       | TLS-terminating reverse proxy                                          | Generates a self-signed wildcard cert at start if `CERT_PUB_KEY` / `CERT_PRIV_KEY` are not provided.                                                                                                                                                                                                                                 |
 
 #### Tag scheme
 
@@ -164,7 +165,9 @@ The revision carries no semver meaning and takes no `v` prefix; it is a counter,
 half of the tag is ours and which is upstream. Images published before this scheme used the reverse order,
 `v1.0.0-trmm1.5.1`.
 
-`tactical-rmm/config.yml` holds both: `tacticalrmm.version` for upstream and `published.revision` for ours. Increment
+`tactical-rmm/config.yml` holds both halves of the tag: `tacticalrmm.version` for upstream and `published.revision`
+for ours. It also holds `components.meshcentral.build_args.MESH_VERSION`, which is not part of the tag; bumping
+MeshCentral alone is a `published.revision` bump like any other change to the directory. Increment
 `published.revision` whenever anything in the directory changes, a Dockerfile, an entrypoint or a config template, and
 reset it to 1 when `tacticalrmm.version` moves. All five images share the one number, since they are always built and
 released as a set.

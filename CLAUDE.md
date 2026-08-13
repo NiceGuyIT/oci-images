@@ -83,7 +83,7 @@ oci-images/
 │   ├── nginx/Dockerfile
 │   ├── build.nu                # Optional component arg; omit to build all five
 │   ├── compose.example.yml     # Six state volumes; /opt/tactical is baked, never mounted; no init service
-│   └── config.yml              # One TRMM_VERSION drives every component
+│   └── config.yml              # One TRMM_VERSION drives every component; MeshCentral pinned separately via build_args
 └── wordpress/                  # PHP/WordPress with Redis, Xdebug
     ├── Dockerfile              # Conditional xdebug install via build arg
     ├── build.nu

@@ -15,7 +15,7 @@ published:
   #
   # Bumping this also changes the image identity marker the startup bootstrap
   # compares against, so a bump makes the next start run the full bootstrap.
-  revision: 3
+  revision: 4
 
 components:
   backend:
@@ -31,6 +31,12 @@ components:
     image_name: tactical-meshcentral
     base_image: node
     base_tag: 24-alpine
+    # Extra --build-arg pairs for this component only. MeshCentral is pinned
+    # here rather than read from the upstream MESH_VER in settings.py, so it
+    # moves independently of tacticalrmm.version above.
+    # Releases: https://github.com/Ylianst/MeshCentral/releases
+    build_args:
+      MESH_VERSION: 1.2.5
   nats:
     image_name: tactical-nats
     base_image: nats
