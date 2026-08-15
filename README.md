@@ -239,6 +239,14 @@ half-written value, and `tactical-meshcentral` exits non-zero when `meshcentral 
 starting up healthy without the file every Django service is blocked on. Raise the timeout if a first run on a slow
 host legitimately needs longer.
 
+`mesh_token` is re-read from MeshCentral on every start rather than cached. `meshcentral --logintokenkey` returns the
+key already in MeshCentral's database and mints one only when there is none, so the copy in `tactical-tmp` cannot
+outlive the key it came from. This matters because the two live in different volumes with different lifetimes: a
+recreated MeshCentral database, or a migration from an older data store, gives MeshCentral a new key while the old file
+survives. A cached copy would then be published to every Django service, and the full bootstrap would write it into
+`CoreSettings.mesh_token` on every upgrade, silently breaking mesh logins and reverting any value fixed by hand in the
+dashboard. Re-reading repairs that on the next start and logs a warning naming the change.
+
 Nothing in the stack runs as root any more. That removes the class of bug where the init container created a file the
 services could not then write, but it also means a bind-mounted host directory must already be owned by uid 10000:
 there is no longer a privileged process to `chown` it for you. Named volumes are unaffected, since Docker seeds them

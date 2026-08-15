@@ -124,25 +124,46 @@ done
 node node_modules/meshcentral --createaccount "${MESH_USER}" --pass "${MESH_PASS}" --email example@example.com
 node node_modules/meshcentral --adminaccount "${MESH_USER}"
 
-# Every Django service blocks until this file is non-empty, so the guard here has
-# to be -s and not -f: a zero-byte token left by an earlier failed run would
-# otherwise never be regenerated and would deadlock the whole stack.
+# MeshCentral owns this key: --logintokenkey returns the one already in its
+# database and mints one only when there is none. Re-read it on every start, so a
+# cached copy cannot outlive the key it came from and silently break every mesh
+# login until someone regenerates it by hand.
 mesh_token_file="${TACTICAL_DIR}/tmp/mesh_token"
 
-if [ ! -s "${mesh_token_file}" ]; then
-  mesh_token=$(node node_modules/meshcentral --logintokenkey)
-
-  if [ ${#mesh_token} -ne 160 ]; then
-    echo "FATAL: meshcentral --logintokenkey returned ${#mesh_token} characters, expected 160." >&2
-    echo "Exiting: the Django services wait on ${mesh_token_file}, so continuing would leave them blocked." >&2
-    exit 1
-  fi
-
-  # Same directory, so the rename is atomic and a reader never sees a partial
-  # token or the truncated file a failed write would leave behind.
-  printf '%s\n' "${mesh_token}" >"${mesh_token_file}.tmp"
-  mv "${mesh_token_file}.tmp" "${mesh_token_file}"
+previous_token=""
+if [ -s "${mesh_token_file}" ]; then
+  previous_token=$(cat "${mesh_token_file}")
 fi
+
+if ! mesh_token_output=$(node node_modules/meshcentral --logintokenkey); then
+  echo "FATAL: meshcentral --logintokenkey failed; its output is above." >&2
+  echo "Exiting: the Django services wait on ${mesh_token_file}, so continuing would leave them blocked." >&2
+  exit 1
+fi
+
+# The key is the last line. Taken that way rather than whole, because this now
+# runs on every start, where a warning printed ahead of it would fail the length
+# check below on a stack that is otherwise healthy.
+mesh_token=${mesh_token_output##*$'\n'}
+
+if [ ${#mesh_token} -ne 160 ]; then
+  echo "FATAL: meshcentral --logintokenkey returned ${#mesh_token} characters, expected 160." >&2
+  echo "Exiting: the Django services wait on ${mesh_token_file}, so continuing would leave them blocked." >&2
+  exit 1
+fi
+
+# Drift is what this re-read exists to repair, so say so: it means every mesh
+# login minted from the old key stops working, and the operator chasing that
+# needs to see when the key moved.
+if [ -n "${previous_token}" ] && [ "${previous_token}" != "${mesh_token}" ]; then
+  echo "WARN: MeshCentral's login token key changed; updating ${mesh_token_file}." >&2
+  echo "The Django bootstrap reads the new key on its next run, and a full bootstrap writes it to CoreSettings.mesh_token." >&2
+fi
+
+# Same directory, so the rename is atomic and a reader never sees a partial
+# token or the truncated file a failed write would leave behind.
+printf '%s\n' "${mesh_token}" >"${mesh_token_file}.tmp"
+mv "${mesh_token_file}.tmp" "${mesh_token_file}"
 
 waited=0
 until (echo >/dev/tcp/"${NGINX_HOST_IP}"/"${NGINX_HOST_PORT}") &>/dev/null; do
