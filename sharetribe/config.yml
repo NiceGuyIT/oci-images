@@ -1,0 +1,19 @@
+# The variables are separated out to make it easier to update the versions.
+
+sharetribe:
+  url: https://github.com/sharetribe/sharetribe/releases/tag/v9.1.0
+  # Git tag to clone. Must match published.version below (this image tracks
+  # upstream releases 1:1; there is no independent versioning).
+  tag: v9.1.0
+
+node:
+  url: https://nodejs.org/dist/v10.15.3/
+  # Pinned per the Gemfile.lock / Dockerfile at the sharetribe.tag above.
+  version: 10.15.3
+
+published:
+  # Published image name
+  name: "sharetribe"
+  # Tracks sharetribe.tag; kept as a separate field so build.nu doesn't need
+  # to strip/reformat the git tag to produce an image tag.
+  version: "v9.1.0"

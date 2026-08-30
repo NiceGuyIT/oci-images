@@ -490,3 +490,35 @@ cd tactical-rmm
 
 Each test prints `[ PASS ]` or `[ FAIL ]` live; the script summarizes counts and exits non-zero on any failure, so it
 slots into a CI pipeline or a post-change check.
+
+### Sharetribe
+
+[Sharetribe](https://github.com/sharetribe/sharetribe) is the legacy self-hosted marketplace platform (Ruby 2.6.5 /
+Rails 5, pinned to release `v9.1.0`). Upstream ships no published image, only a `Dockerfile` in the source tree; the
+`sharetribe/` image clones that tag and builds it, patched for infrastructure that no longer exists as of this
+writing:
+
+- Node.js is installed by verified sha256 checksum instead of GPG, since the SKS keyserver pool upstream's Dockerfile
+  used has been shut down since 2021.
+- Debian buster's apt sources are repointed at `archive.debian.org`, since buster went EOL and moved out of the
+  regular mirrors.
+- The `mysql-apt-config` package (upstream's mechanism for adding MySQL 5.7's apt repo) is skipped entirely; the
+  `mysql-5.7` component's source line is written directly, over HTTPS and marked `[trusted=yes]`, since that
+  component's signing key expired in 2025-10 and MySQL will never re-sign a frozen buster component.
+- `mimemagic` is locked to `0.3.3` in the shipped `Gemfile.lock`, a version yanked from rubygems.org in 2021 over a
+  bundled-database licensing dispute. The Gemfile is patched to `~> 0.3.10` (the fixed release in the same line both
+  `marcel` and `paperclip` here constrain to) and just that one gem is relocked before `bundle install`.
+- `bundler` is pinned to `1.17.2` to match the `Gemfile.lock`'s `BUNDLED WITH`, since newer bundler versions refuse to
+  install on Ruby 2.6.5.
+- `assets:precompile` eagerly resolves `config.active_storage.service`, which builds an S3 client and raises if AWS
+  credentials aren't present, even though asset compilation makes no S3 calls. Throwaway placeholder credentials are
+  set for that one build step only (not persisted via `ENV`), so the running container still gets its real
+  credentials from the deployment's own secrets.
+
+Sharetribe requires MySQL 5.7, Sphinx 2.1.4+ (search), Redis (cache), and a `delayed_job` worker process off this same
+image at deploy time; none of those are bundled into the image itself. See the deployment issue in `a8n-run/docker`
+(DEV-689) for the runtime stack.
+
+```bash
+cd sharetribe && ./build.nu
+```
