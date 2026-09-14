@@ -6,12 +6,12 @@
 # cargo-chef. Space is cheap; the goal is no per-repo pkg drift.
 #
 # Tag suffix encodes rust + debian for predictable pinning:
-#   rust-builder-glibc:v1.0.0-rust1.94-trixie
+#   rust-builder-glibc:v1.2.0-rust1.98.1-trixie
 #
 # Windows cross-compile lives in rust-builder-glibc-windows because the
 # mingw-w64 toolchain is large and only one consumer needs it.
 
-ARG RUST_VERSION=1.94
+ARG RUST_VERSION=1.98.1
 ARG DEBIAN_VARIANT=trixie
 
 FROM rust:${RUST_VERSION}-slim-${DEBIAN_VARIANT}

@@ -7,7 +7,7 @@ def load-config []: [nothing -> any] {
 	try {
 		let config = (open config.yml)
 
-		# Tag suffix encodes rust + debian: <version>-rust1.94-trixie etc.
+		# Tag suffix encodes rust + debian: <version>-rust1.98.1-trixie etc.
 		let suffix = ([
 			$"rust($config.rust.version)"
 			$config.debian.variant

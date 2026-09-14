@@ -3,7 +3,7 @@
 
 rust:
   # Pinned Rust toolchain. Bumping this requires rebuilding every consumer.
-  version: "1.94"
+  version: "1.98.1"
 
 debian:
   # Debian codename for the rust:<version>-slim-<variant> base image.
@@ -17,7 +17,6 @@ dioxus:
 
 published:
   # Published image version. Bump when any layer changes.
-  # v1.1.0 moves dx 0.7.7 -> 0.8.0-alpha.1; 0.7 consumers stay on the
-  # v1.0.1-* tags, which every consumer pins exactly.
-  version: v1.1.0
+  # v1.2.0 moves Rust to 1.98.1 and keeps dx 0.8.0-alpha.1.
+  version: v1.2.0
   name: rust-builder-glibc

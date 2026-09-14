@@ -9,7 +9,7 @@ opensuse:
 
 published:
   # The openSUSE name and version are appended: v0.1.1-leap-15.6
-  version: "v1.8.0"
+  version: "v1.9.0"
   base:
     # Published image name and version
     name: "opensuse-base"
@@ -212,7 +212,7 @@ binaries:
       version: "v1.1.5"
     # Dioxus
     - name: dx
-      version: "v0.7.7"
+      version: "v0.8.0-alpha.1"
     - name: fd
       version: "v10.4.2"
     # Mirrored under the package name; the file is already the `fj` command.

@@ -1,6 +1,6 @@
 # rust-builder-glibc-windows
 
-Debian trixie + Rust 1.94 + the mingw-w64 cross toolchain (32-bit and 64-bit) and the `x86_64-pc-windows-gnu` / `i686-pc-windows-gnu` rustup targets. Used to cross-compile Rust projects to Windows on a Linux runner. See the root [README](../README.md) for the build command and tag scheme.
+Debian trixie + Rust 1.98.1 + the mingw-w64 cross toolchain (32-bit and 64-bit) and the `x86_64-pc-windows-gnu` / `i686-pc-windows-gnu` rustup targets. Used to cross-compile Rust projects to Windows on a Linux runner. See the root [README](../README.md) for the build command and tag scheme.
 
 ## The OpenSSL cross-compile problem
 

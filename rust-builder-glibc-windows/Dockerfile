@@ -4,9 +4,9 @@
 # scope is expected to deviate over time (eg. msvc target, additional crts).
 #
 # Tag suffix:
-#   rust-builder-glibc-windows:v1.0.0-rust1.94-trixie
+#   rust-builder-glibc-windows:v1.2.0-rust1.98.1-trixie
 
-ARG RUST_VERSION=1.94
+ARG RUST_VERSION=1.98.1
 ARG DEBIAN_VARIANT=trixie
 
 FROM rust:${RUST_VERSION}-slim-${DEBIAN_VARIANT}

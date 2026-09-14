@@ -6,7 +6,7 @@ def load-config []: [nothing -> any] {
 	try {
 		let config = (open config.yml)
 
-		# Tag suffix encodes rust + alpine: <version>-rust1.94-alpine.
+		# Tag suffix encodes rust + alpine: <version>-rust1.98.1-alpine.
 		let suffix = ([$"rust($config.rust.version)" 'alpine'] | str join '-')
 
 		let parts = ($config.published.version | split row '.')

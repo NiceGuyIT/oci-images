@@ -3,7 +3,7 @@
 
 rust:
   # Pinned Rust toolchain.
-  version: "1.94"
+  version: "1.98.1"
 
 debian:
   # Debian codename for the base image. Trixie host, mingw cross toolchain.
@@ -11,5 +11,5 @@ debian:
 
 published:
   # Published image version. Bump when any layer changes.
-  version: v1.1.0
+  version: v1.2.0
   name: rust-builder-glibc-windows
