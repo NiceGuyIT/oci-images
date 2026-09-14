@@ -5,6 +5,18 @@ FROM docker.io/opensuse/leap:${OPENSUSE_VERSION} AS base
 ARG NU_VERSION=0.112.2
 ARG BINARIES_HOST=dufs.niceguyit.biz
 
+# Toolchains install system-wide so every container UID can use them. setup.nu add-user mirrors
+# these into /etc/profile.d for ssh login shells, which do not inherit Docker ENV.
+ENV RUSTUP_HOME=/usr/local/rustup \
+	CARGO_HOME=/usr/local/cargo \
+	BUN_INSTALL_GLOBAL_DIR=/usr/local/share/bun/global \
+	BUN_INSTALL_BIN=/usr/local/share/bun/bin \
+	UV_TOOL_DIR=/usr/local/share/uv/tools \
+	UV_TOOL_BIN_DIR=/usr/local/share/uv/bin \
+	UV_PYTHON_INSTALL_DIR=/usr/local/share/uv/python \
+	UV_PYTHON_BIN_DIR=/usr/local/share/uv/bin
+ENV PATH="${CARGO_HOME}/bin:${BUN_INSTALL_BIN}:${UV_TOOL_BIN_DIR}:${PATH}"
+
 # Bootstrap Nushell (needed to run setup.nu)
 RUN curl -sSfL --retry 3 --retry-delay 2 --retry-connrefused -o /usr/local/bin/nu \
 	"https://${BINARIES_HOST}/public/linux/x86_64/nu/${NU_VERSION}/nu" \
@@ -26,19 +38,15 @@ RUN nu /tmp/build/setup.nu install-binaries
 # Create user and configure environment
 RUN nu /tmp/build/setup.nu add-user
 
-# Install user-level tools (nvm, bun, uv, Rust) as dev user
-USER dev
-RUN nu --login --commands "nu /tmp/build/setup.nu install-user-tools --variant base"
+# Install Rust, bun global packages, and uv tools system-wide
+RUN nu /tmp/build/setup.nu install-system-tools --variant base
 
-# Make user-installed binaries discoverable to non-login shells (`docker exec`,
-# act CI, anything that doesn't go through PAM). Login shells / ssh sessions /
-# devcontainer userEnvProbe get the same PATH from /etc/profile.d/dev-paths.sh
-# written by setup.nu::add-user; this ENV is the second half of the same wiring
-# for environments that inherit Docker's image metadata directly.
-ENV PATH="/home/dev/.cargo/bin:/home/dev/.bun/bin:${PATH}"
+USER dev
 
 # ---- Stage: dev (extends base) ----
 FROM base AS dev
+
+ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/share/ms-playwright
 
 # Install extra dev system packages
 USER root
@@ -49,9 +57,10 @@ RUN nu /tmp/build/setup.nu install-packages --variant dev-extras
 # without Playwright's unsupported-OS fallback to apt-get.
 RUN nu /tmp/build/setup.nu install-playwright-libs
 
-# Install extra dev bun/uv packages as dev user
-USER dev
-RUN nu --login --commands "nu /tmp/build/setup.nu install-dev-extras"
+# Install extra dev bun/uv packages system-wide
+RUN nu /tmp/build/setup.nu install-dev-extras
 
-# Pre-download the Playwright browser binaries into the dev user's cache
-RUN nu --login --commands "nu /tmp/build/setup.nu install-playwright-browsers"
+# Pre-download the Playwright browser binaries into PLAYWRIGHT_BROWSERS_PATH
+RUN nu /tmp/build/setup.nu install-playwright-browsers
+
+USER dev

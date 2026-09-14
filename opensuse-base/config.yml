@@ -9,7 +9,7 @@ opensuse:
 
 published:
   # The openSUSE name and version are appended: v0.1.1-leap-15.6
-  version: "v1.7.0"
+  version: "v1.8.0"
   base:
     # Published image name and version
     name: "opensuse-base"
@@ -76,6 +76,11 @@ packages:
     - libopenssl-devel
     - libappindicator3-1
     - librsvg-devel
+    # youtrack-cli GUI variants
+    - gtk4-devel
+    - cmake
+    - gcc-c++
+    - xdotool-devel
 
 bun:
   base:
@@ -99,7 +104,7 @@ rust:
   # Note: Rust has a 6-week release cycle and only the latest stable version is officially supported.
   # There's no long-term support (LTS) model.
   # Possible value: stable
-  version: "1.94"
+  version: "1.98.1"
 
 playwright:
   # Playwright E2E browsers, pre-baked into the DEV image only, so CI never
@@ -193,15 +198,16 @@ binaries:
   list:
     - name: age
       version: "v1.3.1"
-    # Mirrored under the package name; `bin` installs it as the `btm` command.
-    # The legacy btm/ path on the mirror is frozen at 0.10.2.
+    - name: biome
+      version: "2.5.13"
+    # Mirrored under the package name; the file is already the `btm` command.
     - name: bottom
-      version: "0.14.6"
-      bin: btm
+      version: "0.14.9"
+      file: btm
     - name: bun
-      version: "v1.3"
+      version: "v1.4.2"
     - name: chezmoi
-      version: "v2.70.2"
+      version: "v2.72.2"
     - name: doggo
       version: "v1.1.5"
     # Dioxus
@@ -209,18 +215,22 @@ binaries:
       version: "v0.7.7"
     - name: fd
       version: "v10.4.2"
-    # Mirrored under the package name; `bin` installs it as the `fj` command.
+    # Mirrored under the package name; the file is already the `fj` command.
     - name: forgejo-cli
-      version: "v0.13.0"
-      bin: fj
+      version: "v0.16.0"
+      file: fj
     - name: gh
-      version: "2.41.0"
+      version: "v2.100.0"
     - name: just
-      version: "1.50.0"
+      version: "1.57.0"
     - name: kingfisher
-      version: "1.59.0"
+      version: "v2.2.0"
+    - name: merman
+      version: "v0.8.0-alpha.6"
+      file: merman-cli
     - name: nebula
       version: "v1.10.3"
+    # Archived upstream in favor of titus; kept for backwards compatibility.
     - name: noseyparker
       version: "v0.24.0"
     - name: nu
@@ -242,24 +252,29 @@ binaries:
     - name: pinger
       version: "v1.3.1"
     - name: rage
-      version: "v0.11.2"
-    - name: rg
-      version: "14.0.3"
+      version: "v0.12.1"
     - name: rclone
-      version: "v1.74.0"
+      version: "v1.74.4"
+    # Mirrored under the package name; the file is already the `rg` command.
+    - name: ripgrep
+      version: "15.2.0"
+      file: rg
     - name: starship
       version: "v1.25.1"
+    # Successor to noseyparker.
+    - name: titus
+      version: "v1.2.9"
     - name: trufflehog
-      version: "v3.95.2"
+      version: "v3.97.4"
     - name: uv
-      version: "0.9.21"
+      version: "0.12.13"
     - name: uv
-      version: "0.9.21"
+      version: "0.12.13"
       file: uvx
-    # Mirrored under the package name; `bin` installs it as the `yt` command.
+    # Mirrored under the package name; the file is already the `yt` command.
     - name: youtrack-cli
-      version: "v0.12.0"
-      bin: yt
+      version: "v0.15.0"
+      file: yt
 
 dotfiles:
   repo: https://github.com/NiceGuyIT/dotfiles.git

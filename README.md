@@ -21,10 +21,15 @@ The `opensuse-base` image is an openSUSE Leap 16.0 development environment with 
 and packages. There are two variants:
 
 1. **base** - For CI pipelines. Includes container tools (buildah, docker, docker-compose, docker-buildx),
-   git, Node.js, Nushell with plugins, and the Forgejo (`fj`) and YouTrack (`yt`) CLIs.
-2. **dev** - For development. Adds JetBrains remote development support (Java 21), PostgreSQL 17, Rust 1.94,
-   C/C++ toolchain (clang, gcc), Dioxus dependencies, dotfiles (chezmoi), and additional tools
+   git, Node.js, Nushell with plugins, Rust 1.98.1 (clippy, rustfmt, wasm32 target), and the Forgejo (`fj`) and
+   YouTrack (`yt`) CLIs.
+2. **dev** - For development. Adds JetBrains remote development support (Java 21), PostgreSQL 17,
+   C/C++ toolchain (clang, gcc, g++, cmake), GTK4 and Dioxus dependencies, dotfiles (chezmoi), and additional tools
    (claude-code, starship, ripgrep, fd, etc.).
+
+Rust, bun global packages, uv tools, and the dev image's Playwright browsers install system-wide under `/usr/local`
+(`RUSTUP_HOME`, `CARGO_HOME`, `BUN_INSTALL_*`, `UV_*`, `PLAYWRIGHT_BROWSERS_PATH`). The directories are
+world-writable, so any container UID can use and update them, not only `dev`.
 
 Build variants:
 
