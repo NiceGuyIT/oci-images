@@ -6,6 +6,18 @@
 const config_path = '/tmp/build/config.yml'
 const bin_path = '/usr/local/bin'
 
+# Toolchain location variables set by the Dockerfile ENV.
+const toolchain_env = [
+	RUSTUP_HOME
+	CARGO_HOME
+	BUN_INSTALL_GLOBAL_DIR
+	BUN_INSTALL_BIN
+	UV_TOOL_DIR
+	UV_TOOL_BIN_DIR
+	UV_PYTHON_INSTALL_DIR
+	UV_PYTHON_BIN_DIR
+]
+
 # Retry a closure with linear backoff. This build makes 30+ network fetches and
 # `http get` has no retry of its own, so one blip would abort the whole image.
 def retry [
@@ -26,6 +38,25 @@ def retry [
 		sleep (2sec * $attempt)
 		$attempt += 1
 	}
+}
+
+# Run an install with bun and uv caches in a throwaway directory, so no root-owned cache is baked into the image.
+def with-build-cache [action: closure] {
+	let cache = (mktemp --directory --tmpdir 'build-cache.XXXXXX')
+	with-env {BUN_INSTALL_CACHE_DIR: ($cache | path join 'bun'), UV_CACHE_DIR: ($cache | path join 'uv')} $action
+	rm --recursive $cache
+}
+
+# Make directories world-writable so any container UID can update them, as the official rust image does.
+# Only entries missing the bits are touched: a chmod would copy an unchanged lower-layer file into this layer.
+def share-dirs [...dirs: string] {
+	mkdir ...$dirs
+	^find ...$dirs '!' -perm -a+w -exec chmod a+w '{}' '+'
+}
+
+# Every toolchain directory from the Dockerfile ENV; a missing variable fails the build.
+def toolchain-dirs [] {
+	$toolchain_env | each {|name| $env | get $name } | uniq
 }
 
 # Install system packages via zypper
@@ -78,8 +109,7 @@ def "main install-binaries" [] {
 	| where {|it| ($it.file? | default $it.name) != "nu" }
 	| par-each --threads 4 {|it|
 		let filename = ($it.file? | default $it.name)
-		# Some tools are published under their package name (forgejo-cli); `bin` installs them
-		# under their command name (fj) instead of the remote filename.
+		# Optional `bin` installs the file under a command name that differs from the remote filename.
 		let install_name = ($it.bin? | default $filename)
 		let url = (
 			{
@@ -128,15 +158,17 @@ def "main add-user" [] {
 	# Register nu as a valid shell
 	"/usr/local/bin/nu\n" | save --append /etc/shells
 
-	# Make user-installed binaries (cargo, bun, etc.) discoverable to login
-	# shells: ssh sessions for JetBrains Remote, VS Code devcontainer
-	# userEnvProbe, bash --login.  /etc/profile.d/*.sh is sourced by
-	# /etc/profile, so anything dropped here lands on PATH for every login.
-	let user_home = $"/home/($container_user)"
-	let path_line = (
-		'export PATH="' + $user_home + '/.cargo/bin:' + $user_home + '/.bun/bin:$PATH"' + "\n"
+	# Docker ENV covers `docker exec` and CI, but ssh login shells (JetBrains Remote, devcontainer
+	# userEnvProbe) only source /etc/profile.d, so mirror the toolchain variables there.
+	let toolchain_bins = (
+		[($env.CARGO_HOME | path join 'bin') $env.BUN_INSTALL_BIN $env.UV_TOOL_BIN_DIR] | uniq | str join ':'
 	)
-	$path_line | save /etc/profile.d/dev-paths.sh
+	$toolchain_env
+	| each {|name| $"export ($name)=\"($env | get $name)\"" }
+	| append $"export PATH=\"($toolchain_bins):$PATH\""
+	| str join "\n"
+	| $"($in)\n"
+	| save /etc/profile.d/dev-paths.sh
 	chmod a+r /etc/profile.d/dev-paths.sh
 
 	# Create user with docker group access
@@ -148,7 +180,6 @@ def "main add-user" [] {
 	# Create directories
 	mkdir $"/home/($container_user)/projects"
 	mkdir $"/home/($container_user)/.config/chezmoi"
-	mkdir $"/home/($container_user)/.bun"
 
 	# Clone dotfiles. A failed clone leaves the target dir behind, so remove it
 	# before retrying (git refuses to clone into a non-empty directory).
@@ -170,59 +201,57 @@ def "main add-user" [] {
 	print "User setup complete."
 }
 
-# Install user-level tools (nvm, bun packages, uv tools, Rust)
-# Called once during the base stage with --variant base
-def "main install-user-tools" [
-	--variant: string		# Variant: base or dev
+# Install Rust, bun global packages, and uv tools system-wide (base stage, runs as root).
+# Locations come from the Dockerfile ENV (see toolchain_env).
+def "main install-system-tools" [
+	--variant: string		# Variant: base
 ] {
 	let config = (open $config_path)
 	let rust_version = ($config.rust?.version? | default "stable")
 
-	# Install global NPM packages using bun
-	$config.bun
-	| get $variant
-	| each {|it|
-		print $"Installing bun package: ($it)"
-		^bun install --global $it
-	}
-	^bun pm ls --global
+	with-build-cache {
+		# Install global NPM packages using bun
+		$config.bun
+		| get $variant
+		| each {|it|
+			print $"Installing bun package: ($it)"
+			^bun install --global $it
+		}
+		^bun pm ls --global
 
-	# Install global Python packages using uv
-	$config.uv
-	| get $variant
-	| each {|it|
-		print $"Installing uv tool: ($it)"
-		^uv tool install $it
+		# Install global Python packages using uv
+		$config.uv
+		| get $variant
+		| each {|it|
+			print $"Installing uv tool: ($it)"
+			^uv tool install $it
+		}
+		^uv tool list
 	}
-	^uv tool list
 
 	# Install Rust via rustup
 	let rustup = '/tmp/rustup.sh'
-	let rustup_url = 'https://sh.rustup.rs'
-	retry "download rustup" { http get --max-time 2min $rustup_url } | save $rustup
-	if ($rustup | path exists) {
-		print $"Downloaded rustup. Installing Rust ($rust_version)..."
-		chmod a+x $rustup
-		^$rustup -y --no-modify-path --default-toolchain $rust_version
-		rm $rustup
+	retry "download rustup" { http get --max-time 2min 'https://sh.rustup.rs' } | save $rustup
+	print $"Downloaded rustup. Installing Rust ($rust_version)..."
+	^chmod a+x $rustup
+	^$rustup -y --no-modify-path --default-toolchain $rust_version
+	rm $rustup
 
-		# Pre-install rustup components and targets every Rust check.yml in
-		# the org expects: clippy + rustfmt for `cargo clippy` / `cargo fmt
-		# --check`, wasm32 target for Dioxus / Yew / generic WASM builds.
-		# Without these the workflow has to `rustup component add` on every
-		# job and the runner image is incomplete out of the box.
-		let rustup_bin = $"($env.HOME)/.cargo/bin/rustup"
-		^$rustup_bin component add clippy rustfmt
-		^$rustup_bin target add wasm32-unknown-unknown
-	} else {
-		print 'Failed to download rustup'
-	}
+	# Pre-install rustup components and targets every Rust check.yml in
+	# the org expects: clippy + rustfmt for `cargo clippy` / `cargo fmt
+	# --check`, wasm32 target for Dioxus / Yew / generic WASM builds.
+	# Without these the workflow has to `rustup component add` on every
+	# job and the runner image is incomplete out of the box.
+	let rustup_bin = ($env.CARGO_HOME | path join 'bin' 'rustup')
+	^$rustup_bin component add clippy rustfmt
+	^$rustup_bin target add wasm32-unknown-unknown
 
-	print $"User tools installed for variant: ($variant)"
+	share-dirs ...(toolchain-dirs)
+	print $"System tools installed for variant: ($variant)"
 }
 
-# Install only the extra dev packages beyond base (bun and uv only).
-# Called in the dev stage to avoid re-installing nvm, Rust, and base packages.
+# Install only the extra dev packages beyond base (bun and uv only), system-wide as root.
+# Called in the dev stage to avoid re-installing Rust and base packages.
 def "main install-dev-extras" [] {
 	let config = (open $config_path)
 
@@ -231,23 +260,26 @@ def "main install-dev-extras" [] {
 	let dev_bun = ($config.bun.dev)
 	let extra_bun = ($dev_bun | where {|pkg| $pkg not-in $base_bun})
 
-	for pkg in $extra_bun {
-		print $"Installing extra bun package: ($pkg)"
-		^bun install --global $pkg
-	}
-	^bun pm ls --global
-
 	# Compute extra uv tools (dev minus base)
 	let base_uv = ($config.uv.base)
 	let dev_uv = ($config.uv.dev)
 	let extra_uv = ($dev_uv | where {|tool| $tool not-in $base_uv})
 
-	for tool in $extra_uv {
-		print $"Installing extra uv tool: ($tool)"
-		^uv tool install $tool
-	}
-	^uv tool list
+	with-build-cache {
+		for pkg in $extra_bun {
+			print $"Installing extra bun package: ($pkg)"
+			^bun install --global $pkg
+		}
+		^bun pm ls --global
 
+		for tool in $extra_uv {
+			print $"Installing extra uv tool: ($tool)"
+			^uv tool install $tool
+		}
+		^uv tool list
+	}
+
+	share-dirs ...(toolchain-dirs)
 	print "Dev extras installed."
 }
 
@@ -300,19 +332,26 @@ def "main install-playwright-libs" [] {
 	print "Playwright libraries installed."
 }
 
-# Pre-download the Playwright browser binaries into the dev user's cache (dev
-# stage, runs as the dev user). They land in ~/.cache/ms-playwright, the default
-# location Playwright reads, so a consuming project that pins the same version
-# finds them already present and skips the runtime download.
+# Pre-download the Playwright browser binaries into PLAYWRIGHT_BROWSERS_PATH (dev
+# stage, runs as root). A consuming project that pins the same version finds them
+# already present and skips the runtime download.
 def "main install-playwright-browsers" [] {
 	let config = (open $config_path)
 	let pw = $config.playwright
 	let spec = $"playwright@($pw.version)"
+	let browsers_path = $env.PLAYWRIGHT_BROWSERS_PATH
 
 	# `bun x` (not the `bunx` shim, which the bare bun binary download does not
 	# create) runs the pinned Playwright CLI to fetch the browser binaries.
-	print $"Installing Playwright browsers \(($pw.browsers | str join ', ')) via ($spec)"
-	^bun x $spec install ...($pw.browsers)
+	print $"Installing Playwright browsers \(($pw.browsers | str join ', ')) into ($browsers_path) via ($spec)"
+	with-build-cache {
+		^bun x $spec install ...($pw.browsers)
+	}
+	share-dirs $browsers_path
+
+	# Same reason as dev-paths.sh: ssh login shells do not inherit Docker ENV.
+	$"export PLAYWRIGHT_BROWSERS_PATH=\"($browsers_path)\"\n" | save /etc/profile.d/playwright-browsers.sh
+	chmod a+r /etc/profile.d/playwright-browsers.sh
 	print "Playwright browsers installed."
 }
 
@@ -322,8 +361,8 @@ def main [] {
 	print "  install-packages --variant <base|dev-extras> - Install system packages via zypper"
 	print "  install-binaries   - Download all single-file binaries"
 	print "  add-user           - Create dev user and configure environment"
-	print "  install-user-tools --variant <base|dev> - Install user-level tools"
-	print "  install-dev-extras - Install only extra dev bun/uv packages"
+	print "  install-system-tools --variant base - Install Rust, bun and uv tools system-wide (root)"
+	print "  install-dev-extras - Install only extra dev bun/uv packages system-wide (root)"
 	print "  install-playwright-libs     - Install Playwright browser system + vendored libs (root)"
-	print "  install-playwright-browsers - Pre-download Playwright browser binaries (dev user)"
+	print "  install-playwright-browsers - Pre-download Playwright browser binaries system-wide (root)"
 }
