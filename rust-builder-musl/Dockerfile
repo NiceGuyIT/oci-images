@@ -4,9 +4,9 @@
 # transcoder. No Dioxus / bun / GTK: those need glibc - see rust-builder-glibc.
 #
 # Tag suffix:
-#   rust-builder-musl:v1.0.0-rust1.94-alpine
+#   rust-builder-musl:v1.1.0-rust1.98.1-alpine
 
-ARG RUST_VERSION=1.94
+ARG RUST_VERSION=1.98.1
 
 FROM rust:${RUST_VERSION}-alpine
 

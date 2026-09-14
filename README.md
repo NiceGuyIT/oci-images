@@ -47,16 +47,16 @@ Images are organized around the C runtime, since that is the dimension that spli
 inside an image is cheap relative to the per-build cost of installing tooling, so each image is intentionally a
 kitchen sink.
 
-1. **`rust-builder-glibc`** (Debian trixie) - Rust 1.94 + every glibc-compatible build dependency the org uses:
+1. **`rust-builder-glibc`** (Debian trixie) - Rust 1.98.1 + every glibc-compatible build dependency the org uses:
    pkg-config, libssl-dev, build-essential, lld, libsqlite3-dev, libgit2-dev, zlib1g-dev, the full Dioxus desktop
    stack (libwebkit2gtk-4.1-dev, libgtk-3-dev, libsoup-3.0-dev, libxdo-dev, libayatana-appindicator3-dev,
    librsvg2-dev, libjavascriptcoregtk-4.1-dev), eframe Wayland + X11 + OpenGL + fontconfig deps, libudev / libusb /
    libxkbcommon for HID/USB device access, nodejs/npm + bun for asset bundling, dioxus-cli (pinned), cargo-binstall,
    cargo-watch, cargo-chef, the WASM target, and rustfmt + clippy.
-2. **`rust-builder-musl`** (Alpine 3) - Rust 1.94 + every musl-compatible build dependency: musl-dev, pkgconfig,
+2. **`rust-builder-musl`** (Alpine 3) - Rust 1.98.1 + every musl-compatible build dependency: musl-dev, pkgconfig,
    openssl-dev + openssl-libs-static, sqlite-static, lld, perl + make + linux-headers (for openssl-sys / ring),
    bash + curl + wget + git + ffmpeg, cargo-binstall, cargo-watch, the WASM target, and rustfmt + clippy.
-3. **`rust-builder-glibc-windows`** (Debian trixie) - Rust 1.94 + mingw-w64 cross toolchain (32-bit + 64-bit) +
+3. **`rust-builder-glibc-windows`** (Debian trixie) - Rust 1.98.1 + mingw-w64 cross toolchain (32-bit + 64-bit) +
    `x86_64-pc-windows-gnu` + `i686-pc-windows-gnu` rustup targets, plus `perl` + `make` + `libssl-dev` for the OpenSSL
    C dependency that the libgit2 git stack and `reqwest` pull. Separate image because the mingw toolchain is large
    (~1.5GB); scope expected to deviate (msvc target, additional CRTs). Cross-compiling OpenSSL-linking crates to
@@ -74,9 +74,9 @@ cd rust-builder-glibc-windows && ./build.nu
 Tag scheme encodes Rust + base distro:
 
 ```
-rust-builder-glibc:v1.0.0-rust1.94-trixie
-rust-builder-musl:v1.0.0-rust1.94-alpine
-rust-builder-glibc-windows:v1.1.0-rust1.94-trixie
+rust-builder-glibc:v1.2.0-rust1.98.1-trixie
+rust-builder-musl:v1.1.0-rust1.98.1-alpine
+rust-builder-glibc-windows:v1.2.0-rust1.98.1-trixie
 ```
 
 ### WordPress
