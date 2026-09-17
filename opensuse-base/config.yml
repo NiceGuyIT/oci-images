@@ -9,7 +9,7 @@ opensuse:
 
 published:
   # The openSUSE name and version are appended: v0.1.1-leap-15.6
-  version: "v1.9.0"
+  version: "v1.10.0"
   base:
     # Published image name and version
     name: "opensuse-base"
@@ -49,6 +49,10 @@ packages:
     # library. Needed by Umbra builds. On Leap 16.0 the udev devel files live in
     # systemd-devel; there is no separate libudev-devel package.
     - systemd-devel
+    # Fonts: Playwright's Chromium aborts on font fallback when none are installed.
+    # fontconfig provides fc-list/fc-cache; the font package alone does not pull it in.
+    - fontconfig
+    - google-noto-sans-fonts
   # dev inherits every base package via the Dockerfile `FROM base` stage, so list
   # only the extras beyond base here (install-dev-extras installs dev minus base).
   dev:
@@ -273,7 +277,7 @@ binaries:
       file: uvx
     # Mirrored under the package name; the file is already the `yt` command.
     - name: youtrack-cli
-      version: "v0.15.0"
+      version: "v0.16.0"
       file: yt
 
 dotfiles:
